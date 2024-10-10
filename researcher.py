@@ -82,7 +82,7 @@ async def research(user_input: str):
     full_normal = [result[0] for result in results]
     full_pdf = [result[1] for result in results]
 
-    full_final_answer = await final_synthesis(full_pdf, full_normal, user_input, openai)
+    full_final_answer = await final_synthesis(full_pdf, full_normal, user_input, format_notes, openai)
     logger.info("Research completed successfully")
 
     return full_final_answer
