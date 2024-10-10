@@ -1,10 +1,14 @@
+import logging
 from openai.types.chat import ParsedChatCompletion
-from openai import OpenAI
+from openai import AsyncOpenAI
 from models import SubQuestionGeneration 
 
-def generate_sub_questions(user_input: str, client: OpenAI) -> ParsedChatCompletion[SubQuestionGeneration]:
+logger = logging.getLogger(__name__)
+
+async def generate_sub_questions(user_input: str, client: AsyncOpenAI) -> ParsedChatCompletion[SubQuestionGeneration]:
     try:
-        response = client.beta.chat.completions.parse(
+        logger.info(f"Generating sub-questions for user input: {user_input}")
+        response = await client.beta.chat.completions.parse(
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": """
@@ -22,7 +26,8 @@ def generate_sub_questions(user_input: str, client: OpenAI) -> ParsedChatComplet
             ],
             response_format=SubQuestionGeneration
         )
+        logger.info(f"Generated {len(response.choices[0].message.parsed.questions)} sub-questions")
         return response
     except Exception as e:
-        print(f"Error generating sub-questions: {str(e)}")
+        logger.error(f"Error generating sub-questions: {str(e)}")
         return None

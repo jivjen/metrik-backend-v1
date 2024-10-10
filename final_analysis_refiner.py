@@ -1,15 +1,17 @@
-from openai import OpenAI
-from models import RefinedAnalysis, FinalAnalysisRefinement
+import logging
+from openai import AsyncOpenAI
+from models import RefinedAnalysis, FinalAnalysisRefinement, CompleteAnalysis
 
+logger = logging.getLogger(__name__)
 
-def final_analysis_refiner(complete_analysis: CompleteAnalysis, user_input: str, sub_question: str, client: OpenAI) -> RefinedAnalysis:
+async def final_analysis_refiner(complete_analysis: CompleteAnalysis, user_input: str, sub_question: str, client: AsyncOpenAI) -> RefinedAnalysis:
     formatted_points = "\n\n".join([f"Point: {point.point}\nReference: {point.reference}" for point in complete_analysis.analysis])
-
 
     max_retries = 3
     for attempt in range(max_retries):
         try:
-            response = client.beta.chat.completions.parse(
+            logger.info(f"Refining analysis for sub-question: {sub_question} (Attempt {attempt + 1})")
+            response = await client.beta.chat.completions.parse(
                 model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": f"""
@@ -34,9 +36,11 @@ def final_analysis_refiner(complete_analysis: CompleteAnalysis, user_input: str,
                 ],
                 response_format=FinalAnalysisRefinement
             )
-            return RefinedAnalysis(refined_analysis=response.choices[0].message.parsed.refined_analysis, references=response.choices[0].message.parsed.references)
+            refined_analysis = RefinedAnalysis(refined_analysis=response.choices[0].message.parsed.refined_analysis, references=response.choices[0].message.parsed.references)
+            logger.info(f"Successfully refined analysis for sub-question: {sub_question}")
+            return refined_analysis
         except Exception as e:
-            print(f"An error occurred during final analysis refinement (attempt {attempt + 1}/{max_retries}): {e}")
+            logger.error(f"An error occurred during final analysis refinement (attempt {attempt + 1}/{max_retries}): {e}")
             if attempt == max_retries - 1:
                 raise
 

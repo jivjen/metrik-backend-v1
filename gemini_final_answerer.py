@@ -1,12 +1,15 @@
+import logging
 from tenacity import retry, stop_after_attempt, wait_fixed
 import google.generativeai as genai
 from models import RefinedAnalysis, ReformatAnswerResponse, GeminiAnswerResponse
-from typing import List, Optional, Callable, Dict, Tuple
+from typing import List, Dict
 from gemini_safety_config import safety_config
 import json
-from openai import OpenAI
+from openai import AsyncOpenAI
 
-def final_synthesis(full_pdf: List[Dict[str, str]], full_normal: List[RefinedAnalysis], main_query: str, openai: OpenAI) -> Dict[str, str]:
+logger = logging.getLogger(__name__)
+
+async def final_synthesis(full_pdf: List[Dict[str, str]], full_normal: List[RefinedAnalysis], main_query: str, openai: AsyncOpenAI) -> Dict[str, str]:
     gemini_api_key = "AIzaSyAViB80an5gX6nJFZY2zQnna57a80OLKwk"
     if not gemini_api_key:
         raise ValueError("GEMINI_API_KEY not found")
@@ -51,25 +54,25 @@ def final_synthesis(full_pdf: List[Dict[str, str]], full_normal: List[RefinedAna
     Please note to keep your answer as a whole under the answer key and the references listed under the references key
     """
 
-
-    response = model.generate_content(
-                prompt,
-                generation_config=genai.GenerationConfig(
-                    response_mime_type="application/json",
-                    response_schema=GeminiAnswerResponse
-                ),
-                safety_settings=safety_config
-            )
-    print(f"RAW QUESTION RESPONSE = {response}")
+    logger.info("Generating final synthesis")
+    response = await model.generate_content_async(
+        prompt,
+        generation_config=genai.GenerationConfig(
+            response_mime_type="application/json",
+            response_schema=GeminiAnswerResponse
+        ),
+        safety_settings=safety_config
+    )
+    logger.debug(f"RAW QUESTION RESPONSE = {response}")
     try:
-      return json.loads(response.candidates[0].content.parts[0].text)
+        return json.loads(response.candidates[0].content.parts[0].text)
     except json.JSONDecodeError as j:
-      print(f"JSON parsing failed. Attempting to reformat the response. {j}")
-      return reformat_with_openai_summary_fully_final(response.candidates[0].content.parts[0].text, openai)
+        logger.error(f"JSON parsing failed. Attempting to reformat the response. {j}")
+        return await reformat_with_openai_summary_fully_final(response.candidates[0].content.parts[0].text, openai)
     return {"answer": "Error in final synthesis.", "references": []}
 
 @retry(stop=stop_after_attempt(1), wait=wait_fixed(2))
-def reformat_with_openai_summary_fully_final(raw_response: str, client: OpenAI) -> str:
+async def reformat_with_openai_summary_fully_final(raw_response: str, client: AsyncOpenAI) -> str:
     prompt = f"""
     The following text is a response from an AI model that should be in JSON format with 'answer' and 'references' keys, but it may be malformed with extra newline characters or something which is resulting in a JSON parsing error.
     Please reformat this text properly without modifying any of the existing information and give the output according to the defined schema with the entire summary content under the summary key and the references under the references key.
@@ -78,7 +81,7 @@ def reformat_with_openai_summary_fully_final(raw_response: str, client: OpenAI) 
     {raw_response}
     """
 
-    response = client.beta.chat.completions.parse(
+    response = await client.beta.chat.completions.parse(
         model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": "You are an expert in formatting JSON responses. You are supposed to take the input and convert it according to the specified output schema"},
@@ -90,5 +93,5 @@ def reformat_with_openai_summary_fully_final(raw_response: str, client: OpenAI) 
     try:
         return {"answer" : response.choices[0].message.parsed.answer, "references": response.choices[0].message.parsed.references}
     except json.JSONDecodeError:
-        print("Failed to reformat response. Returning empty string.")
+        logger.error("Failed to reformat response. Returning empty string.")
         return ""

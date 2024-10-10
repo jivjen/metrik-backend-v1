@@ -1,10 +1,13 @@
-from openai import OpenAI
+import logging
+from openai import AsyncOpenAI
 from models import AnalyzedSearchPoints, SearchResultAnalysis
 
+logger = logging.getLogger(__name__)
 
-def search_result_analyzer(search_result: str, user_input: str, sub_question: str, client: OpenAI) -> AnalyzedSearchPoints:
+async def search_result_analyzer(search_result: str, user_input: str, sub_question: str, client: AsyncOpenAI) -> AnalyzedSearchPoints:
     try:
-        response = client.beta.chat.completions.parse(
+        logger.info(f"Analyzing search results for sub-question: {sub_question}")
+        response = await client.beta.chat.completions.parse(
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": f"""
@@ -29,7 +32,8 @@ def search_result_analyzer(search_result: str, user_input: str, sub_question: st
             response_format=SearchResultAnalysis
         )
         result = AnalyzedSearchPoints(points=response.choices[0].message.parsed.points)
+        logger.info(f"Analyzed {len(result.points)} points for sub-question: {sub_question}")
         return result
     except Exception as e:
-        print(f"Error analyzing search results: {str(e)}")
+        logger.error(f"Error analyzing search results: {str(e)}")
         return None

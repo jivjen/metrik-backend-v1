@@ -1,11 +1,14 @@
+import logging
 from tenacity import retry, stop_after_attempt, wait_fixed
 import google.generativeai as genai
 from models import GeminiPDFAnalysisResponse, ReformatResponseAnalysis
 from gemini_safety_config import safety_config
 import json
-from openai import OpenAI
+from openai import AsyncOpenAI
 
-def analyze_with_gemini(text: str, user_input: str, sub_question: str, openai: OpenAI) -> str:
+logger = logging.getLogger(__name__)
+
+async def analyze_with_gemini(text: str, user_input: str, sub_question: str, openai: AsyncOpenAI) -> str:
     gemini_api_key = "AIzaSyAViB80an5gX6nJFZY2zQnna57a80OLKwk"
     if not gemini_api_key:
         raise ValueError("GEMINI_API_KEY not found in .env file")
@@ -33,7 +36,8 @@ def analyze_with_gemini(text: str, user_input: str, sub_question: str, openai: O
       Remember: Provide a thorough and insightful answer that goes beyond simply summarizing the text. Draw connections, highlight implications, and offer a nuanced understanding of the topic, ensuring you address both the main query and the specific sub-question.
       """
 
-    response = model.generate_content(
+    logger.info(f"Analyzing PDF content for sub-question: {sub_question}")
+    response = await model.generate_content_async(
         prompt,
         generation_config=genai.GenerationConfig(
             response_mime_type="application/json",
@@ -41,21 +45,21 @@ def analyze_with_gemini(text: str, user_input: str, sub_question: str, openai: O
         ),
         safety_settings=safety_config
     )
-    print(f"RAW RESPONSE {response}")
+    logger.debug(f"RAW RESPONSE {response}")
     
     try:
         parsed_response = json.loads(response.candidates[0].content.parts[0].text)
         analysis = parsed_response.get("analysis")
     except json.JSONDecodeError:
-        print("JSON parsing failed. Attempting to reformat the response.")
-        return reformat_with_openai_analysis(response.candidates[0].content.parts[0].text, openai)
+        logger.error("JSON parsing failed. Attempting to reformat the response.")
+        return await reformat_with_openai_analysis(response.candidates[0].content.parts[0].text, openai)
     if analysis is not None:
       return analysis
     else:
       return ""
 
 @retry(stop=stop_after_attempt(1), wait=wait_fixed(2))
-def reformat_with_openai_analysis(raw_response: str, client: OpenAI) -> str:
+async def reformat_with_openai_analysis(raw_response: str, client: AsyncOpenAI) -> str:
     prompt = f"""
     The following text is a response from an AI model that should be in JSON format with an 'analysis' key, but it may be malformed with extra newline characters or something which is resulting in a JSON parsing error. 
     Please reformat this text properly without modifying any of the existing information and give the output according to the defined schema with all the content under the analysis key.
@@ -64,7 +68,7 @@ def reformat_with_openai_analysis(raw_response: str, client: OpenAI) -> str:
     {raw_response}
     """
 
-    response = client.beta.chat.completions.parse(
+    response = await client.beta.chat.completions.parse(
         model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": "You are an expert in formatting JSON responses."},
@@ -76,5 +80,5 @@ def reformat_with_openai_analysis(raw_response: str, client: OpenAI) -> str:
     try:
         return response.choices[0].message.parsed.analysis
     except json.JSONDecodeError:
-        print("Failed to reformat response. Returning empty string.")
+        logger.error("Failed to reformat response. Returning empty string.")
         return ""

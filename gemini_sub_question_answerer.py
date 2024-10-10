@@ -1,12 +1,15 @@
+import logging
 from tenacity import retry, stop_after_attempt, wait_fixed
 import google.generativeai as genai
 from models import RefinedAnalysis, ReformatAnswerResponse, GeminiAnswerResponse
-from typing import List, Optional, Callable, Dict, Tuple
+from typing import Dict
 from gemini_safety_config import safety_config
 import json
-from openai import OpenAI
+from openai import AsyncOpenAI
 
-def synthesize_combined_analysis(normal_search_analysis: RefinedAnalysis, pdf_search_analysis: Dict, sub_question: str, format_notes: str, openai: OpenAI) -> Dict[str, str]:
+logger = logging.getLogger(__name__)
+
+async def synthesize_combined_analysis(normal_search_analysis: RefinedAnalysis, pdf_search_analysis: Dict, sub_question: str, format_notes: str, openai: AsyncOpenAI) -> Dict[str, str]:
     gemini_api_key = "AIzaSyAViB80an5gX6nJFZY2zQnna57a80OLKwk"
     if not gemini_api_key:
         raise ValueError("GEMINI_API_KEY not found in .env file")
@@ -19,7 +22,7 @@ def synthesize_combined_analysis(normal_search_analysis: RefinedAnalysis, pdf_se
       References:
       {', '.join(normal_search_analysis.references)}"""
 
-          # Format PDF search analysis
+    # Format PDF search analysis
     pdf_analysis = f"""Analysis:
       {pdf_search_analysis['summary']}
 
@@ -54,28 +57,27 @@ def synthesize_combined_analysis(normal_search_analysis: RefinedAnalysis, pdf_se
     """
 
     try:
-
-
-        response = model.generate_content(
-                    prompt,
-                    generation_config=genai.GenerationConfig(
-                        response_mime_type="application/json",
-                        response_schema=GeminiAnswerResponse
-                    ),
-                    safety_settings=safety_config
-                )
-        print(f"RAW QUESTION RESPONSE = {response}")
+        logger.info(f"Synthesizing combined analysis for sub-question: {sub_question}")
+        response = await model.generate_content_async(
+            prompt,
+            generation_config=genai.GenerationConfig(
+                response_mime_type="application/json",
+                response_schema=GeminiAnswerResponse
+            ),
+            safety_settings=safety_config
+        )
+        logger.debug(f"RAW QUESTION RESPONSE = {response}")
         try:
-          return json.loads(response.candidates[0].content.parts[0].text)
+            return json.loads(response.candidates[0].content.parts[0].text)
         except json.JSONDecodeError:
-          print("JSON parsing failed. Attempting to reformat the response.")
-          return reformat_with_openai_answer_final(response.candidates[0].content.parts[0].text, openai)
+            logger.error("JSON parsing failed. Attempting to reformat the response.")
+            return await reformat_with_openai_answer_final(response.candidates[0].content.parts[0].text, openai)
     except Exception as e:
-        print(f"Error in synthesizing combined analysis: {e}")
-        return "Error in synthesizing combined analysis."
+        logger.error(f"Error in synthesizing combined analysis: {e}")
+        return {"answer": "Error in synthesizing combined analysis.", "references": []}
 
 @retry(stop=stop_after_attempt(1), wait=wait_fixed(2))
-def reformat_with_openai_answer_final(raw_response: str, client: OpenAI) -> str:
+async def reformat_with_openai_answer_final(raw_response: str, client: AsyncOpenAI) -> str:
     prompt = f"""
     The following text is a response from an AI model that should be in JSON format with 'answer' and 'references' keys, but it may be malformed with extra newline characters or something which is resulting in a JSON parsing error.
     Please reformat this text properly without modifying any of the existing information and give the output according to the defined schema with the entire summary content under the summary key and the references under the references key.
@@ -84,7 +86,7 @@ def reformat_with_openai_answer_final(raw_response: str, client: OpenAI) -> str:
     {raw_response}
     """
 
-    response = client.beta.chat.completions.parse(
+    response = await client.beta.chat.completions.parse(
         model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": "You are an expert in formatting JSON responses. You are supposed to take the input and convert it according to the specified output schema"},
@@ -96,6 +98,6 @@ def reformat_with_openai_answer_final(raw_response: str, client: OpenAI) -> str:
     try:
         return {"answer" : response.choices[0].message.parsed.answer, "references": response.choices[0].message.parsed.references}
     except json.JSONDecodeError:
-        print("Failed to reformat response. Returning empty string.")
+        logger.error("Failed to reformat response. Returning empty string.")
         return ""
 

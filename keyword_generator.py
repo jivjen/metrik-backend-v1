@@ -1,10 +1,14 @@
+import logging
 from openai.types.chat import ParsedChatCompletion
-from openai import OpenAI
+from openai import AsyncOpenAI
 from models import KeywordGeneration
 
-def keyword_generator(user_input: str, sub_question: str, client: OpenAI) -> ParsedChatCompletion[KeywordGeneration]:
+logger = logging.getLogger(__name__)
+
+async def keyword_generator(user_input: str, sub_question: str, client: AsyncOpenAI) -> ParsedChatCompletion[KeywordGeneration]:
     try:
-        response = client.beta.chat.completions.parse(
+        logger.info(f"Generating keywords for sub-question: {sub_question}")
+        response = await client.beta.chat.completions.parse(
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": """
@@ -25,7 +29,8 @@ def keyword_generator(user_input: str, sub_question: str, client: OpenAI) -> Par
             ],
             response_format=KeywordGeneration
         )
+        logger.info(f"Generated {len(response.choices[0].message.parsed.keywords)} keywords")
         return response
     except Exception as e:
-        print(f"Error generating keywords: {str(e)}")
+        logger.error(f"Error generating keywords: {str(e)}")
         return None

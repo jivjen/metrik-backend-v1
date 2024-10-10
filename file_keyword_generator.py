@@ -1,10 +1,14 @@
+import logging
 from openai.types.chat import ParsedChatCompletion
-from openai import OpenAI
+from openai import AsyncOpenAI
 from models import FileSearchKeywords
 
-def file_keyword_generator(user_input: str, client: OpenAI) -> ParsedChatCompletion[FileSearchKeywords]:
+logger = logging.getLogger(__name__)
+
+async def file_keyword_generator(user_input: str, client: AsyncOpenAI) -> ParsedChatCompletion[FileSearchKeywords]:
     try:
-        response = client.beta.chat.completions.parse(
+        logger.info(f"Generating file search keywords for input: {user_input}")
+        response = await client.beta.chat.completions.parse(
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": """
@@ -29,7 +33,8 @@ def file_keyword_generator(user_input: str, client: OpenAI) -> ParsedChatComplet
             ],
             response_format=FileSearchKeywords
         )
+        logger.info(f"Generated {len(response.choices[0].message.parsed.keywords)} file search keywords")
         return response
     except Exception as e:
-        print(f"Error generating file keywords: {str(e)}")
+        logger.error(f"Error generating file keywords: {str(e)}")
         return None
