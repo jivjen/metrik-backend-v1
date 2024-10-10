@@ -33,16 +33,16 @@ async def process_sub_question(user_input: str, question: SubQuestion, openai: A
     logger.info(f"Keywords: {extracted_keywords}")
     logger.info(f"File Keywords: {extracted_file_keywords}")
 
-    # Process keywords concurrently
-    processed_tasks = [process_keyword(keyword, user_input, question.question, openai) for keyword in extracted_keywords]
-    list_of_processed = await asyncio.gather(*processed_tasks)
+    # Process keywords and PDF files concurrently
+    keyword_tasks = [process_keyword(keyword, user_input, question.question, openai) for keyword in extracted_keywords]
+    pdf_search_task = asyncio.create_task(search_for_pdf_files(extracted_file_keywords))
     
-    complete_analysis = CompleteAnalysis(analysis=[point for result in list_of_processed for point in result.points])
+    keyword_results, pdf_links = await asyncio.gather(asyncio.gather(*keyword_tasks), pdf_search_task)
+    
+    complete_analysis = CompleteAnalysis(analysis=[point for result in keyword_results for point in result.points])
     refined_analysis = await final_analysis_refiner(complete_analysis, user_input, question.question, openai)
     logger.info(f"Refined Analysis: {refined_analysis}")
 
-    # Process PDF files concurrently
-    pdf_links = await search_for_pdf_files(extracted_file_keywords)
     logger.info(f"PDF Links: {pdf_links}")
     
     pdf_tasks = [process_pdf(pdf_link, user_input, question.question, openai) for pdf_link in pdf_links]
