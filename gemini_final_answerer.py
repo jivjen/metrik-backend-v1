@@ -73,27 +73,26 @@ async def final_synthesis(full_pdf: List[Dict[str, str]], full_normal: List[Refi
         return await reformat_with_openai_summary_fully_final(response.candidates[0].content.parts[0].text, openai)
     return {"answer": "Error in final synthesis.", "references": []}
 
-@retry(stop=stop_after_attempt(1), wait=wait_fixed(2))
-async def reformat_with_openai_summary_fully_final(raw_response: str, client: AsyncOpenAI) -> str:
-    prompt = f"""
-    The following text is a response from an AI model that should be in JSON format with 'answer' and 'references' keys, but it may be malformed with extra newline characters or something which is resulting in a JSON parsing error.
-    Please reformat this text properly without modifying any of the existing information and give the output according to the defined schema with the entire summary content under the summary key and the references under the references key.
-
-    Raw text:
-    {raw_response}
-    """
-
-    response = await client.beta.chat.completions.parse(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": "You are an expert in formatting JSON responses. You are supposed to take the input and convert it according to the specified output schema"},
-            {"role": "user", "content": prompt}
-        ],
-        response_format=ReformatAnswerResponse,
-    )
-
+async def reformat_with_openai_summary_fully_final(raw_response: str, client: AsyncOpenAI) -> Dict[str, str]:
     try:
-        return {"answer" : response.choices[0].message.parsed.answer, "references": response.choices[0].message.parsed.references}
-    except json.JSONDecodeError:
-        logger.error("Failed to reformat response. Returning empty string.")
-        return ""
+        prompt = f"""
+        The following text is a response from an AI model that should be in JSON format with 'answer' and 'references' keys, but it may be malformed with extra newline characters or something which is resulting in a JSON parsing error.
+        Please reformat this text properly without modifying any of the existing information and give the output according to the defined schema with the entire summary content under the summary key and the references under the references key.
+
+        Raw text:
+        {raw_response}
+        """
+
+        response = await client.beta.chat.completions.parse(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are an expert in formatting JSON responses. You are supposed to take the input and convert it according to the specified output schema"},
+                {"role": "user", "content": prompt}
+            ],
+            response_format=ReformatAnswerResponse,
+        )
+
+        return {"answer": response.choices[0].message.parsed.answer, "references": response.choices[0].message.parsed.references}
+    except Exception as e:
+        logger.error(f"Failed to reformat response: {str(e)}. Returning empty string.")
+        return {"answer": "", "references": []}
