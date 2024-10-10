@@ -58,27 +58,26 @@ async def analyze_with_gemini(text: str, user_input: str, sub_question: str, ope
     else:
       return ""
 
-@retry(stop=stop_after_attempt(1), wait=wait_fixed(2))
 async def reformat_with_openai_analysis(raw_response: str, client: AsyncOpenAI) -> str:
-    prompt = f"""
-    The following text is a response from an AI model that should be in JSON format with an 'analysis' key, but it may be malformed with extra newline characters or something which is resulting in a JSON parsing error. 
-    Please reformat this text properly without modifying any of the existing information and give the output according to the defined schema with all the content under the analysis key.
-
-    Raw text:
-    {raw_response}
-    """
-
-    response = await client.beta.chat.completions.parse(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": "You are an expert in formatting JSON responses."},
-            {"role": "user", "content": prompt}
-        ],
-        response_format=ReformatResponseAnalysis,
-    )
-
     try:
+        prompt = f"""
+        The following text is a response from an AI model that should be in JSON format with an 'analysis' key, but it may be malformed with extra newline characters or something which is resulting in a JSON parsing error. 
+        Please reformat this text properly without modifying any of the existing information and give the output according to the defined schema with all the content under the analysis key.
+
+        Raw text:
+        {raw_response}
+        """
+
+        response = await client.beta.chat.completions.parse(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are an expert in formatting JSON responses."},
+                {"role": "user", "content": prompt}
+            ],
+            response_format=ReformatResponseAnalysis,
+        )
+
         return response.choices[0].message.parsed.analysis
-    except json.JSONDecodeError:
-        logger.error("Failed to reformat response. Returning empty string.")
+    except Exception as e:
+        logger.error(f"Failed to reformat response: {str(e)}. Returning empty string.")
         return ""
