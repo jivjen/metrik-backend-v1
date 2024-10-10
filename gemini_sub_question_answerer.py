@@ -9,7 +9,7 @@ from openai import AsyncOpenAI
 
 logger = logging.getLogger(__name__)
 
-async def synthesize_combined_analysis(normal_search_analysis: RefinedAnalysis, pdf_search_analysis: Dict, sub_question: str, format_notes: str, openai: AsyncOpenAI) -> Dict[str, str]:
+async def synthesize_combined_analysis(normal_search_analysis: RefinedAnalysis, pdf_search_analysis: Dict, sub_question: str, openai: AsyncOpenAI) -> Dict[str, str]:
     gemini_api_key = "AIzaSyAViB80an5gX6nJFZY2zQnna57a80OLKwk"
     if not gemini_api_key:
         raise ValueError("GEMINI_API_KEY not found in .env file")
@@ -33,8 +33,6 @@ async def synthesize_combined_analysis(normal_search_analysis: RefinedAnalysis, 
     Synthesize the following analyses to provide a comprehensive answer to the question:
 
     Question: {sub_question}
-
-    Format Notes: {format_notes}
 
     Normal Search Analysis:
     {normal_analysis}

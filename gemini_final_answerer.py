@@ -9,7 +9,7 @@ from openai import AsyncOpenAI
 
 logger = logging.getLogger(__name__)
 
-async def final_synthesis(full_pdf: List[Dict[str, str]], full_normal: List[RefinedAnalysis], main_query: str, openai: AsyncOpenAI) -> Dict[str, str]:
+async def final_synthesis(full_pdf: List[Dict[str, str]], full_normal: List[RefinedAnalysis], main_query: str, format_notes: str, openai: AsyncOpenAI) -> Dict[str, str]:
     gemini_api_key = "AIzaSyAViB80an5gX6nJFZY2zQnna57a80OLKwk"
     if not gemini_api_key:
         raise ValueError("GEMINI_API_KEY not found")
@@ -32,6 +32,8 @@ async def final_synthesis(full_pdf: List[Dict[str, str]], full_normal: List[Refi
     Synthesize all the following analyses to provide a comprehensive answer to the main query:
 
     Main Query: {main_query}
+
+    Format Notes: {format_notes}
 
     PDF Analyses:
     {pdf_analyses}
