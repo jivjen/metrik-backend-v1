@@ -37,19 +37,17 @@ async def process_sub_question(user_input: str, question: SubQuestion, openai: A
     keyword_tasks = [process_keyword(keyword, user_input, question.question, openai) for keyword in extracted_keywords]
     pdf_search_task = asyncio.create_task(search_for_pdf_files(extracted_file_keywords))
     
-    keyword_results, pdf_links = await asyncio.gather(asyncio.gather(*keyword_tasks), pdf_search_task)
+    # Start PDF processing as soon as PDF search is done
+    pdf_processing_task = asyncio.create_task(process_pdfs(pdf_search_task, user_input, question.question, openai))
+    
+    # Wait for keyword processing and PDF processing to complete
+    keyword_results, pdf_result = await asyncio.gather(asyncio.gather(*keyword_tasks), pdf_processing_task)
     
     complete_analysis = CompleteAnalysis(analysis=[point for result in keyword_results for point in result.points])
     refined_analysis = await final_analysis_refiner(complete_analysis, user_input, question.question, openai)
     logger.info(f"Refined Analysis: {refined_analysis}")
 
-    logger.info(f"PDF Links: {pdf_links}")
-    
-    pdf_tasks = [process_pdf(pdf_link, user_input, question.question, openai) for pdf_link in pdf_links]
-    list_of_processed_files = await asyncio.gather(*pdf_tasks)
-    list_of_processed_files = [pdf for pdf in list_of_processed_files if pdf is not None]
-
-    full_pdf_summary = await summarize_pdf_analyses(list_of_processed_files, user_input, question.question, openai)
+    full_pdf_summary = pdf_result
     logger.info(f"Full PDF Analysis: {full_pdf_summary}")
 
     answer = await synthesize_combined_analysis(refined_analysis, full_pdf_summary, question.question, openai)
@@ -57,6 +55,17 @@ async def process_sub_question(user_input: str, question: SubQuestion, openai: A
     question.references = answer["references"]
 
     return refined_analysis, full_pdf_summary
+
+async def process_pdfs(pdf_search_task: asyncio.Task, user_input: str, sub_question: str, openai: AsyncOpenAI):
+    pdf_links = await pdf_search_task
+    logger.info(f"PDF Links: {pdf_links}")
+    
+    pdf_tasks = [process_pdf(pdf_link, user_input, sub_question, openai) for pdf_link in pdf_links]
+    list_of_processed_files = await asyncio.gather(*pdf_tasks)
+    list_of_processed_files = [pdf for pdf in list_of_processed_files if pdf is not None]
+
+    full_pdf_summary = await summarize_pdf_analyses(list_of_processed_files, user_input, sub_question, openai)
+    return full_pdf_summary
 
 async def process_pdf(pdf_link: str, user_input: str, sub_question: str, openai: AsyncOpenAI):
     pdf_text = await convert_to_text(pdf_link)
