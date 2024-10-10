@@ -18,15 +18,19 @@ db = client.research_jobs
 # Ensure logs directory exists
 os.makedirs("logs", exist_ok=True)
 
-# Global dictionary to store job statuses
-job_statuses = {}
-
 class ResearchRequest(BaseModel):
     user_input: str
 
 class JobStatus(BaseModel):
     status: str
     details: str
+
+def update_job_status(job_id: str, status: str, details: str):
+    db.job_statuses.update_one(
+        {"job_id": job_id},
+        {"$set": {"status": status, "details": details, "updated_at": datetime.utcnow()}},
+        upsert=True
+    )
 
 def setup_logger(job_id: str):
     logger = logging.getLogger(job_id)
@@ -38,7 +42,7 @@ def setup_logger(job_id: str):
 
 async def run_research(job_id: str, user_input: str):
     logger = setup_logger(job_id)
-    job_statuses[job_id] = {"status": "In Progress", "details": "Starting research"}
+    update_job_status(job_id, "In Progress", "Starting research")
     
     try:
         logger.info(f"Starting research for job {job_id}")
@@ -53,10 +57,10 @@ async def run_research(job_id: str, user_input: str):
             "timestamp": datetime.utcnow()
         })
         
-        job_statuses[job_id] = {"status": "Completed", "details": "Research finished"}
+        update_job_status(job_id, "Completed", "Research finished")
     except Exception as e:
         logger.error(f"Error in research for job {job_id}: {str(e)}")
-        job_statuses[job_id] = {"status": "Failed", "details": str(e)}
+        update_job_status(job_id, "Failed", str(e))
 
 @app.post("/start_job")
 async def start_job(request: ResearchRequest, background_tasks: BackgroundTasks):
@@ -66,9 +70,10 @@ async def start_job(request: ResearchRequest, background_tasks: BackgroundTasks)
 
 @app.get("/job_status/{job_id}")
 async def get_job_status(job_id: str):
-    if job_id not in job_statuses:
+    job_status = db.job_statuses.find_one({"job_id": job_id})
+    if not job_status:
         return {"status": "Not Found"}
-    return job_statuses[job_id]
+    return {"status": job_status["status"], "details": job_status["details"]}
 
 @app.get("/job_result/{job_id}")
 async def get_job_result(job_id: str):
