@@ -30,6 +30,7 @@ class ResearchStatus(str, Enum):
     PROCESSING_KEYWORDS = "Processing keywords"
     SEARCHING_PDF = "Searching for PDF files"
     PROCESSING_PDF = "Processing PDF files"
+    SUMMARIZING_PDF = "Summarizing PDF analyses"
     REFINING_ANALYSIS = "Refining analysis"
     SYNTHESIZING_RESULTS = "Synthesizing results"
     COMPLETED = "Completed"

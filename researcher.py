@@ -20,10 +20,10 @@ logger = logging.getLogger(__name__)
 
 async def process_sub_question(user_input: str, question: SubQuestion, openai: AsyncOpenAI, update_status: Callable):
     logger.info(f"Processing sub-question: {question.question}")
-    update_status(ResearchStatus.PROCESSING_SUB_QUESTIONS, f"Processing sub-question: {question.question}")
+    update_status(ResearchStatus.PROCESSING_SUB_QUESTIONS, f"Processing sub-question: {question.question[:50]}...")
     
     # Generate keywords concurrently
-    update_status(ResearchStatus.GENERATING_KEYWORDS, f"Generating keywords for sub-question: {question.question}")
+    update_status(ResearchStatus.GENERATING_KEYWORDS, f"Generating keywords for: {question.question[:50]}...")
     keywords_task = asyncio.create_task(keyword_generator(user_input, question.question, openai))
     file_keywords_task = asyncio.create_task(file_keyword_generator(question.question, openai))
     
@@ -36,13 +36,13 @@ async def process_sub_question(user_input: str, question: SubQuestion, openai: A
     logger.info(f"File Keywords: {extracted_file_keywords}")
 
     # Process keywords and PDF files concurrently
-    update_status(ResearchStatus.PROCESSING_KEYWORDS, f"Processing keywords for sub-question: {question.question}")
+    update_status(ResearchStatus.PROCESSING_KEYWORDS, f"Processing keyword: {extracted_keywords[0][:30]}...")
     keyword_tasks = [process_keyword(keyword, user_input, question.question, openai) for keyword in extracted_keywords]
-    update_status(ResearchStatus.SEARCHING_PDF, f"Searching for PDF files for sub-question: {question.question}")
+    update_status(ResearchStatus.SEARCHING_PDF, f"Searching PDFs with: {extracted_file_keywords[0][:30]}...")
     pdf_search_task = asyncio.create_task(search_for_pdf_files(extracted_file_keywords))
     
     # Start PDF processing as soon as PDF search is done
-    update_status(ResearchStatus.PROCESSING_PDF, f"Processing PDF files for sub-question: {question.question}")
+    update_status(ResearchStatus.PROCESSING_PDF, f"Processing PDFs for: {question.question[:50]}...")
     pdf_processing_task = asyncio.create_task(process_pdfs(pdf_search_task, user_input, question.question, openai, update_status))
     
     # Wait for keyword processing and PDF processing to complete
@@ -71,17 +71,19 @@ async def process_pdfs(pdf_search_task: asyncio.Task, user_input: str, sub_quest
     list_of_processed_files = await asyncio.gather(*pdf_tasks)
     list_of_processed_files = [pdf for pdf in list_of_processed_files if pdf is not None]
 
+    update_status(ResearchStatus.SUMMARIZING_PDF, f"Summarizing {len(list_of_processed_files)} PDFs...")
     full_pdf_summary = await summarize_pdf_analyses(list_of_processed_files, user_input, sub_question, openai)
     return full_pdf_summary
 
 async def process_pdf(pdf_link: str, user_input: str, sub_question: str, openai: AsyncOpenAI, update_status: Callable):
-    update_status(ResearchStatus.PROCESSING_PDF, f"Processing PDF: {pdf_link}")
+    pdf_name = pdf_link.split('/')[-1]
+    update_status(ResearchStatus.PROCESSING_PDF, f"Processing PDF: {pdf_name[:30]}...")
     pdf_text = await convert_to_text(pdf_link)
     analysed = await analyze_with_gemini(pdf_text, user_input, sub_question, openai)
     if len(analysed) < 2000:
         logger.info(f"Skipping PDF analysis due to short length: {analysed}")
         return None
-    logger.info(f"PDF Analysis: {analysed}")
+    logger.info(f"PDF Analysis: {analysed[:100]}...")
     return PDFAnalysis(url=pdf_link, analysis=analysed)
 
 async def research(user_input: str, update_status: Callable):
