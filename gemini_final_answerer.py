@@ -9,9 +9,28 @@ from openai import AsyncOpenAI
 
 logger = logging.getLogger(__name__)
 
+def setup_logger():
+    logger.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    
+    file_handler = logging.FileHandler('gemini_final_answerer.log')
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(formatter)
+    
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    console_handler.setFormatter(formatter)
+    
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
+
+setup_logger()
+
 async def final_synthesis(full_pdf: List[Dict[str, str]], full_normal: List[RefinedAnalysis], main_query: str, format_notes: str, openai: AsyncOpenAI) -> Dict[str, str]:
+    logger.info(f"Starting final synthesis for main query: {main_query}")
     gemini_api_key = "AIzaSyAViB80an5gX6nJFZY2zQnna57a80OLKwk"
     if not gemini_api_key:
+        logger.error("GEMINI_API_KEY not found")
         raise ValueError("GEMINI_API_KEY not found")
     genai.configure(api_key=gemini_api_key)
     model = genai.GenerativeModel('gemini-1.5-pro-latest')
@@ -21,12 +40,14 @@ async def final_synthesis(full_pdf: List[Dict[str, str]], full_normal: List[Refi
         f"PDF Analysis {i+1}:\n{pdf['summary']}\nReferences:\n{', '.join(pdf['references'])}"
         for i, pdf in enumerate(full_pdf)
     ])
+    logger.debug(f"Formatted PDF analyses (first 500 chars): {pdf_analyses[:500]}...")
 
     # Format normal analyses
     normal_analyses = "\n\n".join([
         f"Normal Analysis {i+1}:\n{normal.refined_analysis}\nReferences:\n{', '.join(normal.references)}"
         for i, normal in enumerate(full_normal)
     ])
+    logger.debug(f"Formatted normal analyses (first 500 chars): {normal_analyses[:500]}...")
 
     prompt = f"""
     Synthesize all the following analyses to provide a comprehensive answer to the main query:
@@ -57,23 +78,30 @@ async def final_synthesis(full_pdf: List[Dict[str, str]], full_normal: List[Refi
     """
 
     logger.info("Generating final synthesis")
-    response = await model.generate_content_async(
-        prompt,
-        generation_config=genai.GenerationConfig(
-            response_mime_type="application/json",
-            response_schema=GeminiAnswerResponse
-        ),
-        safety_settings=safety_config
-    )
-    logger.debug(f"RAW QUESTION RESPONSE = {response}")
     try:
-        return json.loads(response.candidates[0].content.parts[0].text)
-    except json.JSONDecodeError as j:
-        logger.error(f"JSON parsing failed. Attempting to reformat the response. {j}")
-        return await reformat_with_openai_summary_fully_final(response.candidates[0].content.parts[0].text, openai)
-    return {"answer": "Error in final synthesis.", "references": []}
+        response = await model.generate_content_async(
+            prompt,
+            generation_config=genai.GenerationConfig(
+                response_mime_type="application/json",
+                response_schema=GeminiAnswerResponse
+            ),
+            safety_settings=safety_config
+        )
+        logger.debug(f"RAW QUESTION RESPONSE = {response}")
+        try:
+            result = json.loads(response.candidates[0].content.parts[0].text)
+            logger.info("Successfully parsed JSON response")
+            logger.debug(f"Parsed result (first 500 chars): {str(result)[:500]}...")
+            return result
+        except json.JSONDecodeError as j:
+            logger.error(f"JSON parsing failed. Attempting to reformat the response. Error: {j}")
+            return await reformat_with_openai_summary_fully_final(response.candidates[0].content.parts[0].text, openai)
+    except Exception as e:
+        logger.error(f"Error in generating final synthesis: {str(e)}")
+        return {"answer": "Error in final synthesis.", "references": []}
 
 async def reformat_with_openai_summary_fully_final(raw_response: str, client: AsyncOpenAI) -> Dict[str, str]:
+    logger.info("Starting reformatting with OpenAI")
     try:
         prompt = f"""
         The following text is a response from an AI model that should be in JSON format with 'answer' and 'references' keys, but it may be malformed with extra newline characters or something which is resulting in a JSON parsing error.
@@ -83,6 +111,7 @@ async def reformat_with_openai_summary_fully_final(raw_response: str, client: As
         {raw_response}
         """
 
+        logger.debug(f"Sending prompt to OpenAI (first 500 chars): {prompt[:500]}...")
         response = await client.beta.chat.completions.parse(
             model="gpt-4o-mini",
             messages=[
@@ -92,7 +121,10 @@ async def reformat_with_openai_summary_fully_final(raw_response: str, client: As
             response_format=ReformatAnswerResponse,
         )
 
-        return {"answer": response.choices[0].message.parsed.answer, "references": response.choices[0].message.parsed.references}
+        result = {"answer": response.choices[0].message.parsed.answer, "references": response.choices[0].message.parsed.references}
+        logger.info("Successfully reformatted response with OpenAI")
+        logger.debug(f"Reformatted result (first 500 chars): {str(result)[:500]}...")
+        return result
     except Exception as e:
         logger.error(f"Failed to reformat response: {str(e)}. Returning empty string.")
         return {"answer": "", "references": []}
