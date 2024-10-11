@@ -15,7 +15,7 @@ async def get_next_tavily_api_key():
     last_used_key = db.tavily_keys.find_one({"_id": "last_used_key"})
     if last_used_key:
         current_key_num = int(last_used_key["key_num"])
-        next_key_num = (current_key_num % 5) + 1  # Assuming we have 5 API keys
+        next_key_num = (current_key_num % 4) + 1  # Assuming we have 5 API keys
     else:
         next_key_num = 1
     
@@ -27,7 +27,7 @@ async def get_next_tavily_api_key():
     return new_key
 
 async def process_keyword(keyword: str, user_input: str, sub_question: str, openai: AsyncOpenAI):
-    max_retries = 5
+    max_retries = 3
     for attempt in range(max_retries):
         try:
             api_key = await get_next_tavily_api_key()
