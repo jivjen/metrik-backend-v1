@@ -27,9 +27,13 @@ def setup_logger():
 setup_logger()
 
 async def synthesize_combined_analysis(normal_search_analysis: RefinedAnalysis, pdf_search_analysis: Dict, sub_question: str, openai: AsyncOpenAI) -> Dict[str, str]:
+    logger.info(f"Starting synthesis of combined analysis for sub-question: {sub_question}")
+    
     gemini_api_key = "AIzaSyAViB80an5gX6nJFZY2zQnna57a80OLKwk"
     if not gemini_api_key:
+        logger.error("GEMINI_API_KEY not found in .env file")
         raise ValueError("GEMINI_API_KEY not found in .env file")
+    
     genai.configure(api_key=gemini_api_key)
     model = genai.GenerativeModel('gemini-1.5-pro-latest')
 
@@ -45,6 +49,9 @@ async def synthesize_combined_analysis(normal_search_analysis: RefinedAnalysis, 
 
       References:
       {', '.join(pdf_search_analysis['references'])}"""
+
+    logger.debug(f"Normal analysis length: {len(normal_analysis)}")
+    logger.debug(f"PDF analysis length: {len(pdf_analysis)}")
 
     prompt = f"""
     Synthesize the following analyses to provide a comprehensive answer to the question:
@@ -71,8 +78,10 @@ async def synthesize_combined_analysis(normal_search_analysis: RefinedAnalysis, 
     Please note to keep your answer as a whole under the answer key and the references listed under the references key
     """
 
+    logger.debug(f"Prompt length: {len(prompt)}")
+
     try:
-        logger.info(f"Synthesizing combined analysis for sub-question: {sub_question}")
+        logger.info("Sending request to Gemini API")
         response = await model.generate_content_async(
             prompt,
             generation_config=genai.GenerationConfig(
@@ -81,17 +90,22 @@ async def synthesize_combined_analysis(normal_search_analysis: RefinedAnalysis, 
             ),
             safety_settings=safety_config
         )
-        logger.debug(f"RAW QUESTION RESPONSE = {response}")
+        logger.debug(f"Raw Gemini API response: {response}")
+        
         try:
-            return json.loads(response.candidates[0].content.parts[0].text)
+            result = json.loads(response.candidates[0].content.parts[0].text)
+            logger.info("Successfully parsed JSON response from Gemini API")
+            logger.debug(f"Parsed result: {result}")
+            return result
         except json.JSONDecodeError:
             logger.error("JSON parsing failed. Attempting to reformat the response.")
             return await reformat_with_openai_answer_final(response.candidates[0].content.parts[0].text, openai)
     except Exception as e:
-        logger.error(f"Error in synthesizing combined analysis: {e}")
-        return {"answer": "Error in synthesizing combined analysis.", "references": []}
+        logger.error(f"Error in synthesizing combined analysis: {str(e)}")
+        return {"answer": f"Error in synthesizing combined analysis: {str(e)}", "references": []}
 
 async def reformat_with_openai_answer_final(raw_response: str, client: AsyncOpenAI) -> Dict[str, str]:
+    logger.info("Starting reformatting with OpenAI")
     try:
         prompt = f"""
         The following text is a response from an AI model that should be in JSON format with 'answer' and 'references' keys, but it may be malformed with extra newline characters or something which is resulting in a JSON parsing error.
@@ -101,6 +115,7 @@ async def reformat_with_openai_answer_final(raw_response: str, client: AsyncOpen
         {raw_response}
         """
 
+        logger.debug(f"Sending prompt to OpenAI (first 500 chars): {prompt[:500]}...")
         response = await client.beta.chat.completions.parse(
             model="gpt-4o-mini",
             messages=[
@@ -110,8 +125,11 @@ async def reformat_with_openai_answer_final(raw_response: str, client: AsyncOpen
             response_format=ReformatAnswerResponse,
         )
 
-        return {"answer": response.choices[0].message.parsed.answer, "references": response.choices[0].message.parsed.references}
+        result = {"answer": response.choices[0].message.parsed.answer, "references": response.choices[0].message.parsed.references}
+        logger.info("Successfully reformatted response with OpenAI")
+        logger.debug(f"Reformatted result (first 500 chars): {str(result)[:500]}...")
+        return result
     except Exception as e:
-        logger.error(f"Failed to reformat response: {str(e)}. Returning empty string.")
+        logger.error(f"Failed to reformat response: {str(e)}. Returning empty result.")
         return {"answer": "", "references": []}
 
