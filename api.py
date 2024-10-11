@@ -3,11 +3,12 @@ import os
 import uuid
 from fastapi import FastAPI, BackgroundTasks
 from pydantic import BaseModel
-from typing import Dict, Any
-from researcher import research
+from typing import Dict, Any, List
+from researcher import research, ResearchStatus
 import logging
 from pymongo import MongoClient
 from datetime import datetime
+from enum import Enum
 
 app = FastAPI()
 
@@ -21,14 +22,36 @@ os.makedirs("logs", exist_ok=True)
 class ResearchRequest(BaseModel):
     user_input: str
 
-class JobStatus(BaseModel):
-    status: str
-    details: str
+class ResearchStatus(str, Enum):
+    STARTED = "Started"
+    GENERATING_SUB_QUESTIONS = "Generating sub-questions"
+    PROCESSING_SUB_QUESTIONS = "Processing sub-questions"
+    GENERATING_KEYWORDS = "Generating keywords"
+    PROCESSING_KEYWORDS = "Processing keywords"
+    SEARCHING_PDF = "Searching for PDF files"
+    PROCESSING_PDF = "Processing PDF files"
+    REFINING_ANALYSIS = "Refining analysis"
+    SYNTHESIZING_RESULTS = "Synthesizing results"
+    COMPLETED = "Completed"
+    FAILED = "Failed"
 
-def update_job_status(job_id: str, status: str, details: str):
+class JobStatus(BaseModel):
+    status: ResearchStatus
+    details: str
+    sub_statuses: List[Dict[str, str]] = []
+
+def update_job_status(job_id: str, status: ResearchStatus, details: str, sub_status: Dict[str, str] = None):
+    update_data = {
+        "status": status,
+        "details": details,
+        "updated_at": datetime.utcnow()
+    }
+    if sub_status:
+        update_data["$push"] = {"sub_statuses": sub_status}
+    
     db.job_statuses.update_one(
         {"job_id": job_id},
-        {"$set": {"status": status, "details": details, "updated_at": datetime.utcnow()}},
+        {"$set": update_data},
         upsert=True
     )
 
@@ -42,11 +65,11 @@ def setup_logger(job_id: str):
 
 async def run_research(job_id: str, user_input: str):
     logger = setup_logger(job_id)
-    update_job_status(job_id, "In Progress", "Starting research")
+    update_job_status(job_id, ResearchStatus.STARTED, "Starting research")
     
     try:
         logger.info(f"Starting research for job {job_id}")
-        result = await research(user_input)
+        result = await research(user_input, lambda status, details: update_job_status(job_id, status, details))
         logger.info(f"Research completed for job {job_id}")
         
         # Store result in MongoDB
@@ -57,23 +80,27 @@ async def run_research(job_id: str, user_input: str):
             "timestamp": datetime.utcnow()
         })
         
-        update_job_status(job_id, "Completed", "Research finished")
+        update_job_status(job_id, ResearchStatus.COMPLETED, "Research finished")
     except Exception as e:
         logger.error(f"Error in research for job {job_id}: {str(e)}")
-        update_job_status(job_id, "Failed", str(e))
+        update_job_status(job_id, ResearchStatus.FAILED, str(e))
 
 @app.post("/start_job")
 async def start_job(request: ResearchRequest, background_tasks: BackgroundTasks):
     job_id = str(uuid.uuid4())
     background_tasks.add_task(run_research, job_id, request.user_input)
-    return {"job_id": job_id, "status": "Started"}
+    return {"job_id": job_id, "status": ResearchStatus.STARTED}
 
 @app.get("/job_status/{job_id}")
 async def get_job_status(job_id: str):
     job_status = db.job_statuses.find_one({"job_id": job_id})
     if not job_status:
         return {"status": "Not Found"}
-    return {"status": job_status["status"], "details": job_status["details"]}
+    return {
+        "status": job_status["status"],
+        "details": job_status["details"],
+        "sub_statuses": job_status.get("sub_statuses", [])
+    }
 
 @app.get("/job_result/{job_id}")
 async def get_job_result(job_id: str):
