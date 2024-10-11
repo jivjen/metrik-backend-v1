@@ -35,11 +35,13 @@ async def process_sub_question(user_input: str, question: SubQuestion, openai: A
     logger.info(f"Keywords: {extracted_keywords}")
     logger.info(f"File Keywords: {extracted_file_keywords}")
 
+    logger.info("Going to the next process")
     # Process keywords and PDF files concurrently
     update_status(ResearchStatus.PROCESSING_KEYWORDS, f"Processing keyword: {extracted_keywords[0][:30]}...")
     keyword_tasks = [process_keyword(keyword, user_input, question.question, openai) for keyword in extracted_keywords]
     update_status(ResearchStatus.SEARCHING_PDF, f"Searching PDFs with: {extracted_file_keywords[0][:30]}...")
     pdf_search_task = asyncio.create_task(search_for_pdf_files(extracted_file_keywords))
+    logger.info("out to the next process")
     
     # Start PDF processing as soon as PDF search is done
     update_status(ResearchStatus.PROCESSING_PDF, f"Processing PDFs for: {question.question[:50]}...")
