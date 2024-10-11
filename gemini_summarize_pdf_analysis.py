@@ -9,23 +9,6 @@ from openai import AsyncOpenAI
 
 logger = logging.getLogger(__name__)
 
-def setup_logger():
-    logger.setLevel(logging.DEBUG)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    
-    file_handler = logging.FileHandler('gemini_summarize_pdf_analysis.log')
-    file_handler.setLevel(logging.DEBUG)
-    file_handler.setFormatter(formatter)
-    
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
-    console_handler.setFormatter(formatter)
-    
-    logger.addHandler(file_handler)
-    logger.addHandler(console_handler)
-
-setup_logger()
-
 async def summarize_pdf_analyses(pdf_results: List[Tuple[str, str]], main_query: str, sub_question: str, openai: AsyncOpenAI) -> Dict[str, str]:
     logger.info(f"Starting PDF analysis summarization for main query: '{main_query}' and sub-question: '{sub_question}'")
     logger.info(f"Number of PDF results to summarize: {len(pdf_results)}")

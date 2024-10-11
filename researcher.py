@@ -15,24 +15,7 @@ from gemini_sub_question_answerer import synthesize_combined_analysis
 from models import SubQuestion, CompleteAnalysis, PDFAnalysis, ResearchStatus
 from openai import AsyncOpenAI
 
-def setup_logger():
-    logger = logging.getLogger(__name__)
-    logger.setLevel(logging.DEBUG)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    
-    file_handler = logging.FileHandler('researcher.log')
-    file_handler.setLevel(logging.DEBUG)
-    file_handler.setFormatter(formatter)
-    
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
-    console_handler.setFormatter(formatter)
-    
-    logger.addHandler(file_handler)
-    logger.addHandler(console_handler)
-    return logger
-
-logger = setup_logger()
+logger = logging.getLogger(__name__)
 
 async def process_sub_question(user_input: str, question: SubQuestion, openai: AsyncOpenAI, update_status: Callable):
     logger.info(f"Processing sub-question: {question.question}")

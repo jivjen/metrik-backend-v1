@@ -9,15 +9,13 @@ import logging
 from pymongo import MongoClient
 from datetime import datetime
 from models import ResearchStatus
+from logging_config import setup_logger
 
 app = FastAPI()
 
 # MongoDB connection
 client = MongoClient("mongodb+srv://hireloom_admin:QuickVogue%40123@quickvogue.x163n.mongodb.net/?retryWrites=true&w=majority&appName=quickvogue")
 db = client.research_jobs
-
-# Ensure logs directory exists
-os.makedirs("logs", exist_ok=True)
 
 class ResearchRequest(BaseModel):
     user_input: str
@@ -41,16 +39,8 @@ def update_job_status(job_id: str, status: ResearchStatus, details: str, sub_sta
         {"$set": update_data},
         upsert=True
     )
-    logger = logging.getLogger(job_id)
+    logger = logging.getLogger()
     logger.info(f"Job status updated: {status} - {details}")
-
-def setup_logger(job_id: str):
-    logger = logging.getLogger(job_id)
-    logger.setLevel(logging.DEBUG)
-    file_handler = logging.FileHandler(f"logs/{job_id}.log")
-    file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
-    logger.addHandler(file_handler)
-    return logger
 
 async def run_research(job_id: str, user_input: str):
     logger = setup_logger(job_id)
@@ -59,7 +49,7 @@ async def run_research(job_id: str, user_input: str):
     try:
         logger.info(f"Starting research for job {job_id}")
         logger.debug(f"User input: {user_input}")
-        result = await research(user_input, lambda status, details: update_job_status(job_id, status, details), logger)
+        result = await research(user_input, lambda status, details: update_job_status(job_id, status, details))
         logger.info(f"Research completed for job {job_id}")
         logger.debug(f"Research result: {result}")
         
@@ -77,8 +67,7 @@ async def run_research(job_id: str, user_input: str):
         logger.error(f"Error in research for job {job_id}: {str(e)}", exc_info=True)
         update_job_status(job_id, ResearchStatus.FAILED, str(e))
     finally:
-        # Remove the job-specific logger to prevent memory leaks
-        logging.getLogger().handlers = [h for h in logging.getLogger().handlers if not isinstance(h, logging.FileHandler) or h.baseFilename != f"logs/{job_id}.log"]
+        logging.shutdown()
         logger.info(f"Logging finished for job {job_id}")
 
 @app.post("/start_job")

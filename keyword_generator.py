@@ -5,23 +5,6 @@ from models import KeywordGeneration
 
 logger = logging.getLogger(__name__)
 
-def setup_logger():
-    logger.setLevel(logging.DEBUG)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    
-    file_handler = logging.FileHandler('keyword_generator.log')
-    file_handler.setLevel(logging.DEBUG)
-    file_handler.setFormatter(formatter)
-    
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
-    console_handler.setFormatter(formatter)
-    
-    logger.addHandler(file_handler)
-    logger.addHandler(console_handler)
-
-setup_logger()
-
 async def keyword_generator(user_input: str, sub_question: str, client: AsyncOpenAI) -> ParsedChatCompletion[KeywordGeneration]:
     try:
         logger.info(f"Starting keyword generation for main query: '{user_input}' and sub-question: '{sub_question}'")

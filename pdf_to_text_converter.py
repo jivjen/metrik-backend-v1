@@ -7,23 +7,6 @@ from time import time
 
 logger = logging.getLogger(__name__)
 
-def setup_logger():
-    logger.setLevel(logging.DEBUG)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    
-    file_handler = logging.FileHandler('pdf_to_text_converter.log')
-    file_handler.setLevel(logging.DEBUG)
-    file_handler.setFormatter(formatter)
-    
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
-    console_handler.setFormatter(formatter)
-    
-    logger.addHandler(file_handler)
-    logger.addHandler(console_handler)
-
-setup_logger()
-
 async def convert_to_text(file_url: str) -> str:
     logger.info(f"Starting conversion for file: {file_url}")
     start_time = time()

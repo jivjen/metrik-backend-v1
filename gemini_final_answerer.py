@@ -9,23 +9,6 @@ from openai import AsyncOpenAI
 
 logger = logging.getLogger(__name__)
 
-def setup_logger():
-    logger.setLevel(logging.DEBUG)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    
-    file_handler = logging.FileHandler('gemini_final_answerer.log')
-    file_handler.setLevel(logging.DEBUG)
-    file_handler.setFormatter(formatter)
-    
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
-    console_handler.setFormatter(formatter)
-    
-    logger.addHandler(file_handler)
-    logger.addHandler(console_handler)
-
-setup_logger()
-
 async def final_synthesis(full_pdf: List[Dict[str, str]], full_normal: List[RefinedAnalysis], main_query: str, format_notes: str, openai: AsyncOpenAI) -> Dict[str, str]:
     logger.info(f"Starting final synthesis for main query: {main_query}")
     gemini_api_key = "AIzaSyAViB80an5gX6nJFZY2zQnna57a80OLKwk"
