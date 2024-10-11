@@ -9,6 +9,23 @@ from openai import AsyncOpenAI
 
 logger = logging.getLogger(__name__)
 
+def setup_logger():
+    logger.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    
+    file_handler = logging.FileHandler('gemini_sub_question_answerer.log')
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(formatter)
+    
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    console_handler.setFormatter(formatter)
+    
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
+
+setup_logger()
+
 async def synthesize_combined_analysis(normal_search_analysis: RefinedAnalysis, pdf_search_analysis: Dict, sub_question: str, openai: AsyncOpenAI) -> Dict[str, str]:
     gemini_api_key = "AIzaSyAViB80an5gX6nJFZY2zQnna57a80OLKwk"
     if not gemini_api_key:
