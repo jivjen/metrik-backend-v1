@@ -5,38 +5,64 @@ from urllib.parse import quote_plus
 
 logger = logging.getLogger(__name__)
 
+def setup_logger():
+    logger.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    
+    file_handler = logging.FileHandler('pdf_searcher.log')
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(formatter)
+    
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    console_handler.setFormatter(formatter)
+    
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
+
+setup_logger()
+
 GOOGLE_API_KEY = "AIzaSyBiTmP3mKXTUb13BtpDivIDZ5X5KccFaqU"
 GOOGLE_CSE_ID = "82236a47a9b6e47e6"
 
 async def search_for_pdf_files(keywords: list[str], max_results: int = 30, max_attempts: int = 10):
+    logger.info(f"Starting PDF search with {len(keywords)} keywords, max_results={max_results}, max_attempts={max_attempts}")
     pdf_links = []
     attempts = 0
     
     async def search_keyword(session, keyword):
         nonlocal attempts
         if attempts >= max_attempts or len(pdf_links) >= max_results:
+            logger.debug(f"Skipping search for keyword '{keyword}' due to reaching limits")
             return
         try:
             encoded_keyword = quote_plus(keyword)
             url = f"https://www.googleapis.com/customsearch/v1?key={GOOGLE_API_KEY}&cx={GOOGLE_CSE_ID}&q={encoded_keyword}"
+            logger.debug(f"Sending request for keyword: '{keyword}'")
             async with session.get(url) as response:
                 if response.status == 200:
                     data = await response.json()
+                    logger.debug(f"Received {len(data.get('items', []))} items for keyword: '{keyword}'")
                     for item in data.get('items', []):
                         if attempts >= max_attempts or len(pdf_links) >= max_results:
+                            logger.debug("Reached max attempts or results limit")
                             break
                         file_url = item['link']
                         if file_url.lower().endswith('.pdf'):
+                            logger.debug(f"Found PDF: {file_url}")
                             pdf_links.append(file_url)
                         attempts += 1
                 else:
                     logger.error(f"Error occurred while searching for keyword '{keyword}': HTTP {response.status}")
         except Exception as e:
-            logger.error(f"Error occurred while searching for keyword '{keyword}': {e}")
+            logger.error(f"Error occurred while searching for keyword '{keyword}': {e}", exc_info=True)
         attempts += 1
+        logger.debug(f"Completed search for keyword '{keyword}'. Total attempts: {attempts}")
 
     async with aiohttp.ClientSession() as session:
+        logger.info("Starting concurrent keyword searches")
         await asyncio.gather(*[search_keyword(session, keyword) for keyword in keywords])
     
-    logger.info(f"Found {len(pdf_links)} PDF links")
+    logger.info(f"PDF search completed. Found {len(pdf_links)} PDF links")
+    logger.debug(f"PDF links found: {pdf_links}")
     return pdf_links
