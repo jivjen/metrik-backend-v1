@@ -4,8 +4,8 @@ from googleapiclient.discovery import build
 
 logger = logging.getLogger(__name__)
 
-GOOGLE_API_KEY = "AIzaSyBiTmP3mKXTUb13BtpDivIDZ5X5KccFaqU"
-GOOGLE_CSE_ID = "82236a47a9b6e47e6"
+GOOGLE_API_KEY= "AIzaSyBiTmP3mKXTUb13BtpDivIDZ5X5KccFaqU"
+GOOGLE_CSE_ID= "82236a47a9b6e47e6"
 
 google_search = build("customsearch", "v1", developerKey=GOOGLE_API_KEY).cse()
 
