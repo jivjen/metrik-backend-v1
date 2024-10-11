@@ -5,12 +5,17 @@ from models import RefinedAnalysis, FinalAnalysisRefinement, CompleteAnalysis
 logger = logging.getLogger(__name__)
 
 async def final_analysis_refiner(complete_analysis: CompleteAnalysis, user_input: str, sub_question: str, client: AsyncOpenAI) -> RefinedAnalysis:
+    logger.info(f"Starting final analysis refinement for sub-question: {sub_question}")
+    logger.debug(f"User input: {user_input}")
+    logger.debug(f"Complete analysis points count: {len(complete_analysis.analysis)}")
+
     formatted_points = "\n\n".join([f"Point: {point.point}\nReference: {point.reference}" for point in complete_analysis.analysis])
+    logger.debug(f"Formatted points (first 500 chars): {formatted_points[:500]}...")
 
     max_retries = 3
     for attempt in range(max_retries):
         try:
-            logger.info(f"Refining analysis for sub-question: {sub_question} (Attempt {attempt + 1})")
+            logger.info(f"Refining analysis for sub-question: {sub_question} (Attempt {attempt + 1}/{max_retries})")
             response = await client.beta.chat.completions.parse(
                 model="gpt-4o-mini",
                 messages=[
@@ -36,12 +41,18 @@ async def final_analysis_refiner(complete_analysis: CompleteAnalysis, user_input
                 ],
                 response_format=FinalAnalysisRefinement
             )
+            logger.debug(f"Raw API response: {response}")
+            
             refined_analysis = RefinedAnalysis(refined_analysis=response.choices[0].message.parsed.refined_analysis, references=response.choices[0].message.parsed.references)
             logger.info(f"Successfully refined analysis for sub-question: {sub_question}")
+            logger.debug(f"Refined analysis length: {len(refined_analysis.refined_analysis)}")
+            logger.debug(f"Number of references: {len(refined_analysis.references)}")
             return refined_analysis
         except Exception as e:
-            logger.error(f"An error occurred during final analysis refinement (attempt {attempt + 1}/{max_retries}): {e}")
+            logger.error(f"An error occurred during final analysis refinement (attempt {attempt + 1}/{max_retries}): {str(e)}", exc_info=True)
             if attempt == max_retries - 1:
+                logger.critical(f"All attempts failed for sub-question: {sub_question}")
                 raise
 
+    logger.warning(f"Failed to refine analysis after {max_retries} attempts for sub-question: {sub_question}")
     return None
