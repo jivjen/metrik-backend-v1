@@ -71,6 +71,9 @@ async def run_research(job_id: str, user_input: str):
     except Exception as e:
         logger.error(f"Error in research for job {job_id}: {str(e)}")
         update_job_status(job_id, ResearchStatus.FAILED, str(e))
+    finally:
+        # Remove the job-specific logger to prevent memory leaks
+        logging.getLogger().handlers = [h for h in logging.getLogger().handlers if not isinstance(h, logging.FileHandler) or h.baseFilename != f"logs/{job_id}.log"]
 
 @app.post("/start_job")
 async def start_job(request: ResearchRequest, background_tasks: BackgroundTasks):

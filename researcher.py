@@ -46,18 +46,23 @@ async def process_sub_question(user_input: str, question: SubQuestion, openai: A
     pdf_processing_task = asyncio.create_task(process_pdfs(pdf_search_task, user_input, question.question, openai, update_status))
     
     # Wait for keyword processing and PDF processing to complete
+    logger.info("Waiting for keyword processing and PDF processing to complete...")
     keyword_results, pdf_result = await asyncio.gather(asyncio.gather(*keyword_tasks), pdf_processing_task)
+    logger.info("Keyword processing and PDF processing completed.")
     
     complete_analysis = CompleteAnalysis(analysis=[point for result in keyword_results for point in result.points])
     update_status(ResearchStatus.REFINING_ANALYSIS, f"Refining analysis for sub-question: {question.question}")
+    logger.info("Starting final analysis refinement...")
     refined_analysis = await final_analysis_refiner(complete_analysis, user_input, question.question, openai)
-    logger.info(f"Refined Analysis: {refined_analysis}")
+    logger.info("Final analysis refinement completed.")
 
     full_pdf_summary = pdf_result
-    logger.info(f"Full PDF Analysis: {full_pdf_summary}")
+    logger.info("PDF analysis completed.")
 
     update_status(ResearchStatus.SYNTHESIZING_RESULTS, f"Synthesizing results for sub-question: {question.question}")
+    logger.info("Starting synthesis of combined analysis...")
     answer = await synthesize_combined_analysis(refined_analysis, full_pdf_summary, question.question, openai)
+    logger.info("Synthesis of combined analysis completed.")
     question.answer = answer["answer"]
     question.references = answer["references"]
 
@@ -94,16 +99,21 @@ async def research(user_input: str, update_status: Callable):
     sub_questions_response = await generate_sub_questions(user_input, openai)
     sub_questions = sub_questions_response.choices[0].message.parsed.questions
     format_notes = sub_questions_response.choices[0].message.parsed.format_notes
+    logger.info(f"Generated {len(sub_questions)} sub-questions")
 
     # Process all sub-questions concurrently
+    logger.info("Starting processing of sub-questions")
     sub_question_tasks = [process_sub_question(user_input, question, openai, update_status) for question in sub_questions]
     results = await asyncio.gather(*sub_question_tasks)
+    logger.info("All sub-questions processed")
 
     full_normal = [result[0] for result in results]
     full_pdf = [result[1] for result in results]
 
     update_status(ResearchStatus.SYNTHESIZING_RESULTS, "Synthesizing final results")
+    logger.info("Starting final synthesis")
     full_final_answer = await final_synthesis(full_pdf, full_normal, user_input, format_notes, openai)
+    logger.info("Final synthesis completed")
     logger.info("Research completed successfully")
 
     return full_final_answer
