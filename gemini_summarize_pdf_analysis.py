@@ -9,16 +9,43 @@ from openai import AsyncOpenAI
 
 logger = logging.getLogger(__name__)
 
+def setup_logger():
+    logger.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    
+    file_handler = logging.FileHandler('gemini_summarize_pdf_analysis.log')
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(formatter)
+    
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    console_handler.setFormatter(formatter)
+    
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
+
+setup_logger()
+
 async def summarize_pdf_analyses(pdf_results: List[Tuple[str, str]], main_query: str, sub_question: str, openai: AsyncOpenAI) -> Dict[str, str]:
-    logger.info("Summarizing PDF analyses")
-    for url, analysis in pdf_results:
-        logger.debug(f"URL: {url}\nAnalysis: {analysis[:100]}...")  # Log only the first 100 characters of each analysis
+    logger.info(f"Starting PDF analysis summarization for main query: '{main_query}' and sub-question: '{sub_question}'")
+    logger.info(f"Number of PDF results to summarize: {len(pdf_results)}")
+
+    for i, (url, analysis) in enumerate(pdf_results, 1):
+        logger.debug(f"PDF {i} - URL: {url}")
+        logger.debug(f"PDF {i} - Analysis preview: {analysis[:100]}...")
+
     combined_analysis = "\n\n".join([f"Analysis of {url} ({url}):\n{analysis}" for url, analysis in pdf_results])
+    logger.debug(f"Combined analysis length: {len(combined_analysis)} characters")
+
     gemini_api_key = "AIzaSyAViB80an5gX6nJFZY2zQnna57a80OLKwk"
     if not gemini_api_key:
+        logger.error("GEMINI_API_KEY not found in .env file")
         raise ValueError("GEMINI_API_KEY not found in .env file")
+
+    logger.info("Configuring Gemini API")
     genai.configure(api_key=gemini_api_key)
     model = genai.GenerativeModel('gemini-1.5-pro-latest')
+
     prompt = f"""
     Summarize and condense the following analyses of multiple PDF documents to conclusively address:
     Main Query: {main_query}
@@ -39,22 +66,34 @@ async def summarize_pdf_analyses(pdf_results: List[Tuple[str, str]], main_query:
     Remember: Provide a concise yet comprehensive summary that captures key insights from all documents, addressing both the main query and sub-question, with clear references to the source materials.
     """
 
-    response = await model.generate_content_async(
-        prompt,
-        generation_config=genai.GenerationConfig(
-            response_mime_type="application/json",
-            response_schema=GeminiPDFSummariseResponse
-        ),
-        safety_settings=safety_config
-    )
-    logger.debug(f"RAW PDF ANALYSIS RESPONSE = {response}")
+    logger.info("Sending request to Gemini API for content generation")
+    logger.debug(f"Prompt length: {len(prompt)} characters")
+
     try:
-        return json.loads(response.candidates[0].content.parts[0].text)
-    except json.JSONDecodeError:
-        logger.error("JSON parsing failed. Attempting to reformat the response.")
-        return await reformat_with_openai_summary_1(response.candidates[0].content.parts[0].text, openai)
+        response = await model.generate_content_async(
+            prompt,
+            generation_config=genai.GenerationConfig(
+                response_mime_type="application/json",
+                response_schema=GeminiPDFSummariseResponse
+            ),
+            safety_settings=safety_config
+        )
+        logger.debug(f"Raw Gemini API response: {response}")
+
+        try:
+            result = json.loads(response.candidates[0].content.parts[0].text)
+            logger.info("Successfully parsed JSON response from Gemini API")
+            logger.debug(f"Parsed result: {result}")
+            return result
+        except json.JSONDecodeError:
+            logger.error("JSON parsing failed. Attempting to reformat the response.")
+            return await reformat_with_openai_summary_1(response.candidates[0].content.parts[0].text, openai)
+    except Exception as e:
+        logger.error(f"Error in Gemini API request: {str(e)}")
+        raise
 
 async def reformat_with_openai_summary_1(raw_response: str, client: AsyncOpenAI) -> Dict[str, Any]:
+    logger.info("Starting reformatting with OpenAI")
     try:
         prompt = f"""
         The following text is a response from an AI model that should be in JSON format with 'summary' and 'references' keys, but it may be malformed with extra newline characters or something which is resulting in a JSON parsing error.
@@ -64,6 +103,7 @@ async def reformat_with_openai_summary_1(raw_response: str, client: AsyncOpenAI)
         {raw_response}
         """
 
+        logger.debug(f"Sending prompt to OpenAI (first 500 chars): {prompt[:500]}...")
         response = await client.beta.chat.completions.parse(
             model="gpt-4o-mini",
             messages=[
@@ -73,7 +113,10 @@ async def reformat_with_openai_summary_1(raw_response: str, client: AsyncOpenAI)
             response_format=ReformatSummaryResponse,
         )
 
-        return {"summary": response.choices[0].message.parsed.summary, "references": response.choices[0].message.parsed.references}
+        result = {"summary": response.choices[0].message.parsed.summary, "references": response.choices[0].message.parsed.references}
+        logger.info("Successfully reformatted response with OpenAI")
+        logger.debug(f"Reformatted result - Summary length: {len(result['summary'])}, References count: {len(result['references'])}")
+        return result
     except Exception as e:
-        logger.error(f"Failed to reformat response: {str(e)}. Returning empty string.")
+        logger.error(f"Failed to reformat response: {str(e)}. Returning empty result.")
         return {"summary": "", "references": []}
