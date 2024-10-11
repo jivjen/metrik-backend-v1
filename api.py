@@ -41,10 +41,12 @@ def update_job_status(job_id: str, status: ResearchStatus, details: str, sub_sta
         {"$set": update_data},
         upsert=True
     )
+    logger = logging.getLogger(job_id)
+    logger.info(f"Job status updated: {status} - {details}")
 
 def setup_logger(job_id: str):
     logger = logging.getLogger(job_id)
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.DEBUG)
     file_handler = logging.FileHandler(f"logs/{job_id}.log")
     file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
     logger.addHandler(file_handler)
@@ -56,8 +58,10 @@ async def run_research(job_id: str, user_input: str):
     
     try:
         logger.info(f"Starting research for job {job_id}")
-        result = await research(user_input, lambda status, details: update_job_status(job_id, status, details))
+        logger.debug(f"User input: {user_input}")
+        result = await research(user_input, lambda status, details: update_job_status(job_id, status, details), logger)
         logger.info(f"Research completed for job {job_id}")
+        logger.debug(f"Research result: {result}")
         
         # Store result in MongoDB
         db.results.insert_one({
@@ -66,26 +70,35 @@ async def run_research(job_id: str, user_input: str):
             "result": result,
             "timestamp": datetime.utcnow()
         })
+        logger.info(f"Research result stored in MongoDB for job {job_id}")
         
         update_job_status(job_id, ResearchStatus.COMPLETED, "Research finished")
     except Exception as e:
-        logger.error(f"Error in research for job {job_id}: {str(e)}")
+        logger.error(f"Error in research for job {job_id}: {str(e)}", exc_info=True)
         update_job_status(job_id, ResearchStatus.FAILED, str(e))
     finally:
         # Remove the job-specific logger to prevent memory leaks
         logging.getLogger().handlers = [h for h in logging.getLogger().handlers if not isinstance(h, logging.FileHandler) or h.baseFilename != f"logs/{job_id}.log"]
+        logger.info(f"Logging finished for job {job_id}")
 
 @app.post("/start_job")
 async def start_job(request: ResearchRequest, background_tasks: BackgroundTasks):
     job_id = str(uuid.uuid4())
+    logger = setup_logger(job_id)
+    logger.info(f"New job started: {job_id}")
+    logger.debug(f"User input: {request.user_input}")
     background_tasks.add_task(run_research, job_id, request.user_input)
     return {"job_id": job_id, "status": ResearchStatus.STARTED}
 
 @app.get("/job_status/{job_id}")
 async def get_job_status(job_id: str):
+    logger = logging.getLogger(job_id)
+    logger.info(f"Job status requested for job {job_id}")
     job_status = db.job_statuses.find_one({"job_id": job_id})
     if not job_status:
+        logger.warning(f"Job status not found for job {job_id}")
         return {"status": "Not Found"}
+    logger.debug(f"Job status: {job_status}")
     return {
         "status": job_status["status"],
         "details": job_status["details"],
@@ -94,9 +107,13 @@ async def get_job_status(job_id: str):
 
 @app.get("/job_result/{job_id}")
 async def get_job_result(job_id: str):
+    logger = logging.getLogger(job_id)
+    logger.info(f"Job result requested for job {job_id}")
     result = db.results.find_one({"job_id": job_id})
     if result:
+        logger.debug(f"Job result: {result}")
         return {"result": result["result"]}
+    logger.warning(f"Job result not found for job {job_id}")
     return {"status": "Result not found"}
 
 if __name__ == "__main__":
