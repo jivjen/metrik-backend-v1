@@ -1,7 +1,7 @@
 import logging
 from tenacity import retry, stop_after_attempt, wait_fixed
 import google.generativeai as genai
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Any
 from models import GeminiPDFSummariseResponse, ReformatSummaryResponse
 from gemini_safety_config import safety_config
 import json
