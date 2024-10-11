@@ -51,21 +51,27 @@ async def update_tavily_api_key(current_key_num):
     logger.info(f"Updated Tavily API key to number {next_key_num}")
 
 async def process_keyword(keyword: str, user_input: str, sub_question: str, openai: AsyncOpenAI):
+    logger.info(f"Processing keyword: '{keyword}' for sub-question: '{sub_question}'")
     max_retries = 4  # Maximum number of API keys to try
     for attempt in range(max_retries):
         try:
+            logger.debug(f"Attempt {attempt + 1} of {max_retries}")
             api_key, current_key_num = await get_tavily_api_key()
             tavily_client = TavilyClient(api_key=api_key)
-            logger.info(f"Processing keyword: {keyword}")
+            logger.info(f"Sending search request to Tavily for keyword: '{keyword}'")
             tavily_result = await tavily_client.get_search_context(keyword)
+            logger.debug(f"Received Tavily search result (first 100 chars): {tavily_result[:100]}...")
             break
         except Exception as e:
-            logger.error(f"Error getting search context for keyword {keyword} with API key {current_key_num}: {str(e)}")
+            logger.error(f"Error in Tavily search for keyword '{keyword}': {str(e)}")
             await update_tavily_api_key(current_key_num)
             if attempt == max_retries - 1:
-                logger.error(f"All API keys exhausted. Unable to process keyword: {keyword}")
+                logger.warning(f"All API keys exhausted. Unable to process keyword: '{keyword}'")
                 tavily_result = ""
 
+    logger.info(f"Analyzing Tavily search result for keyword: '{keyword}'")
     tavily_analyzed = await search_result_analyzer(tavily_result, user_input, sub_question, openai)
+    logger.debug(f"Analyzed result for keyword '{keyword}' (first 100 chars): {str(tavily_analyzed)[:100]}...")
 
+    logger.info(f"Completed processing for keyword: '{keyword}'")
     return tavily_analyzed
