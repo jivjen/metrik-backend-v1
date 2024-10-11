@@ -15,10 +15,13 @@ logger.info("MongoDB connection established")
 async def get_tavily_api_key():
     logger.info("Retrieving Tavily API key")
     last_used_key = db.tavily_keys.find_one({"_id": "last_used_key"})
+    print(f"last used key = {last_used_key}")
     current_key_num = int(last_used_key["key_num"]) if last_used_key else 1
+    print(f"last used key = {current_key_num}")
     logger.debug(f"Current key number: {current_key_num}")
     
     api_key = os.environ.get(f"TAVILY_API_KEY_{current_key_num}")
+    print(f"api key = {api_key}")
     if not api_key:
         logger.error(f"TAVILY_API_KEY_{current_key_num} not found in environment variables")
         raise ValueError(f"TAVILY_API_KEY_{current_key_num} not found in environment variables")

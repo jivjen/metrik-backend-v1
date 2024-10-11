@@ -1,3 +1,5 @@
 .env
 jesus*
 .aider*
+*__pycache__*
+*logs*

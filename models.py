@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import List, Optional, Callable, Dict, Tuple
 import typing_extensions as typing
+from enum import Enum
 
 class SubQuestion(BaseModel):
     question: str = Field(description="The sub-question")
@@ -64,3 +65,33 @@ class GeminiPDFAnalysisResponse(typing.TypedDict):
 
 class ReformatResponseAnalysis(BaseModel):
     analysis: str = Field(description="The entire analysis")
+
+class GeminiPDFSummariseResponse(typing.TypedDict):
+    summary: str
+    references: List[str]
+
+class GeminiAnswerResponse(typing.TypedDict):
+    answer: str
+    references: List[str]
+
+class ReformatSummaryResponse(BaseModel):
+    summary: str = Field(description="The entire analysis")
+    references: List[str] = Field(description="The references")
+
+class ReformatAnswerResponse(BaseModel):
+    answer: str = Field(description="The entire answer")
+    references: List[str] = Field(description="The references")
+
+class ResearchStatus(str, Enum):
+    STARTED = "Started"
+    GENERATING_SUB_QUESTIONS = "Generating sub-questions"
+    PROCESSING_SUB_QUESTIONS = "Processing sub-questions"
+    GENERATING_KEYWORDS = "Generating keywords"
+    PROCESSING_KEYWORDS = "Processing keywords"
+    SEARCHING_PDF = "Searching for PDF files"
+    PROCESSING_PDF = "Processing PDF files"
+    SUMMARIZING_PDF = "Summarizing PDF analyses"
+    REFINING_ANALYSIS = "Refining analysis"
+    SYNTHESIZING_RESULTS = "Synthesizing results"
+    COMPLETED = "Completed"
+    FAILED = "Failed"
