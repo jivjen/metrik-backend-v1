@@ -12,7 +12,7 @@ from gemini_pdf_analyser import analyze_with_gemini
 from gemini_summarize_pdf_analysis import summarize_pdf_analyses
 from gemini_final_answerer import final_synthesis
 from gemini_sub_question_answerer import synthesize_combined_analysis
-from models import SubQuestion, CompleteAnalysis, PDFAnalysis, RefinedAnalysis
+from models import SubQuestion, CompleteAnalysis, PDFAnalysis, ResearchStatus
 from openai import AsyncOpenAI
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

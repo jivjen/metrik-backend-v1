@@ -4,11 +4,11 @@ import uuid
 from fastapi import FastAPI, BackgroundTasks
 from pydantic import BaseModel
 from typing import Dict, Any, List
-from researcher import research, ResearchStatus
+from researcher import research
 import logging
 from pymongo import MongoClient
 from datetime import datetime
-from enum import Enum
+from models import ResearchStatus
 
 app = FastAPI()
 
@@ -21,20 +21,6 @@ os.makedirs("logs", exist_ok=True)
 
 class ResearchRequest(BaseModel):
     user_input: str
-
-class ResearchStatus(str, Enum):
-    STARTED = "Started"
-    GENERATING_SUB_QUESTIONS = "Generating sub-questions"
-    PROCESSING_SUB_QUESTIONS = "Processing sub-questions"
-    GENERATING_KEYWORDS = "Generating keywords"
-    PROCESSING_KEYWORDS = "Processing keywords"
-    SEARCHING_PDF = "Searching for PDF files"
-    PROCESSING_PDF = "Processing PDF files"
-    SUMMARIZING_PDF = "Summarizing PDF analyses"
-    REFINING_ANALYSIS = "Refining analysis"
-    SYNTHESIZING_RESULTS = "Synthesizing results"
-    COMPLETED = "Completed"
-    FAILED = "Failed"
 
 class JobStatus(BaseModel):
     status: ResearchStatus
