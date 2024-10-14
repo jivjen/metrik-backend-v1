@@ -4,6 +4,8 @@ import fitz
 import logging
 from time import time
 import asyncio
+from typing import Callable
+from models import ResearchStatus, ResearchProgress
 
 logger = logging.getLogger(__name__)
 
