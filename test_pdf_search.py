@@ -11,6 +11,7 @@ async def main():
     logger.info(f"Starting PDF search with keywords: {keywords}")
     
     try:
+        logger.info("Calling search_for_pdf_files function")
         pdf_links = await search_for_pdf_files(keywords, max_results=5)
         
         logger.info(f"Found {len(pdf_links)} PDF links:")
@@ -20,4 +21,6 @@ async def main():
         logger.exception(f"An error occurred during PDF search: {e}")
 
 if __name__ == "__main__":
+    logger.info("Starting the main function")
     asyncio.run(main())
+    logger.info("Main function completed")

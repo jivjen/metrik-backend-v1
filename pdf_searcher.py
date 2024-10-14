@@ -2,7 +2,7 @@ import asyncio
 import logging
 from urllib.parse import quote_plus
 import aiohttp
-from aiohttp import ClientSession
+from aiohttp import ClientSession, TCPConnector
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +43,8 @@ async def search_for_pdf_files(keywords: list[str], max_results: int = 30, max_a
             logger.error(f"Error occurred while searching for keyword '{keyword}': {e}", exc_info=True)
         logger.info(f"Completed search for keyword '{keyword}'. Total attempts: {attempts}")
 
-    async with ClientSession() as session:
+    connector = TCPConnector(ssl=False)
+    async with ClientSession(connector=connector) as session:
         logger.info("Starting concurrent keyword searches")
         tasks = [search_keyword(session, keyword) for keyword in keywords]
         await asyncio.gather(*tasks)
