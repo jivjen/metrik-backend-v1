@@ -4,11 +4,10 @@ import os
 import fitz
 import logging
 from time import time
-import asyncio
 
 logger = logging.getLogger(__name__)
 
-# Set up a custom session for all systems
+# Create a single session to be used for all requests
 session = None
 
 async def convert_to_text(file_url: str) -> str:
