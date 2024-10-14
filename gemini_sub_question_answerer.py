@@ -9,8 +9,14 @@ from openai import AsyncOpenAI
 
 logger = logging.getLogger(__name__)
 
-async def synthesize_combined_analysis(normal_search_analysis: RefinedAnalysis, pdf_search_analysis: Dict, sub_question: str, openai: AsyncOpenAI) -> Dict[str, str]:
+async def synthesize_combined_analysis(normal_search_analysis: RefinedAnalysis, pdf_search_analysis: Dict, sub_question: str, openai: AsyncOpenAI, update_status: Callable) -> Dict[str, str]:
     logger.info(f"Starting synthesis of combined analysis for sub-question: {sub_question}")
+    update_status(ResearchProgress(
+        total_steps=5,
+        current_step=5,
+        status=ResearchStatus.SYNTHESIZING_RESULTS,
+        details=f"Synthesizing results for sub-question: {sub_question[:50]}..."
+    ))
     
     gemini_api_key = "AIzaSyAViB80an5gX6nJFZY2zQnna57a80OLKwk"
     if not gemini_api_key:

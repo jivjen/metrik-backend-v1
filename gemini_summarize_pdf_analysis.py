@@ -9,9 +9,15 @@ from openai import AsyncOpenAI
 
 logger = logging.getLogger(__name__)
 
-async def summarize_pdf_analyses(pdf_results: List[Tuple[str, str]], main_query: str, sub_question: str, openai: AsyncOpenAI) -> Dict[str, str]:
+async def summarize_pdf_analyses(pdf_results: List[Tuple[str, str]], main_query: str, sub_question: str, openai: AsyncOpenAI, update_status: Callable) -> Dict[str, str]:
     logger.info(f"Starting PDF analysis summarization for main query: '{main_query}' and sub-question: '{sub_question}'")
     logger.info(f"Number of PDF results to summarize: {len(pdf_results)}")
+    update_status(ResearchProgress(
+        total_steps=5,
+        current_step=4,
+        status=ResearchStatus.PROCESSING_DOCUMENTS,
+        details=f"Summarizing {len(pdf_results)} PDF analyses"
+    ))
 
     for i, (url, analysis) in enumerate(pdf_results, 1):
         logger.info(f"PDF {i} - URL: {url}")

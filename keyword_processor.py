@@ -40,7 +40,12 @@ async def update_tavily_api_key(current_key_num):
 
 async def process_keyword(keyword: str, user_input: str, sub_question: str, openai: AsyncOpenAI, update_status: Callable):
     logger.info(f"Processing keyword: '{keyword}' for sub-question: '{sub_question}'")
-    update_status(ResearchStatus.PROCESSING_KEYWORD, f"Processing keyword: {keyword}")
+    update_status(ResearchProgress(
+        total_steps=5,
+        current_step=3,
+        status=ResearchStatus.PROCESSING_KEYWORDS,
+        details=f"Processing keyword: {keyword}"
+    ))
     max_retries = 4  # Maximum number of API keys to try
     for attempt in range(max_retries):
         try:

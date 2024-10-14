@@ -35,8 +35,8 @@ async def process_sub_question(user_input: str, question: SubQuestion, openai: A
     ))
     logger.info(f"Starting keyword generation for user input: '{user_input}' and sub-question: '{question.question}'")
     
-    keywords_task = keyword_generator(user_input, question.question, openai)
-    file_keywords_task = file_keyword_generator(question.question, openai)
+    keywords_task = keyword_generator(user_input, question.question, openai, update_status)
+    file_keywords_task = file_keyword_generator(question.question, openai, update_status)
     
     keywords, file_keywords = await asyncio.gather(keywords_task, file_keywords_task)
     
@@ -61,7 +61,7 @@ async def process_sub_question(user_input: str, question: SubQuestion, openai: A
         details=f"Searching online resources for question {question_index}/{total_questions}"
     ))
     keyword_tasks = [process_keyword(keyword, user_input, question.question, openai, update_status) for keyword in extracted_keywords]
-    pdf_search_task = asyncio.create_task(search_for_pdf_files(extracted_file_keywords))
+    pdf_search_task = asyncio.create_task(search_for_pdf_files(extracted_file_keywords, update_status=update_status))
     
     keyword_results, pdf_links = await asyncio.gather(asyncio.gather(*keyword_tasks), pdf_search_task)
     
@@ -93,7 +93,7 @@ async def process_sub_question(user_input: str, question: SubQuestion, openai: A
     complete_analysis = CompleteAnalysis(analysis=[point for result in keyword_results for point in result.points])
     logger.info(f"Created complete analysis with {len(complete_analysis.analysis)} points")
     
-    refined_analysis = await final_analysis_refiner(complete_analysis, user_input, question.question, openai)
+    refined_analysis = await final_analysis_refiner(complete_analysis, user_input, question.question, openai, update_status)
     logger.info(f"Refined analysis length: {len(refined_analysis.refined_analysis)}")
 
     # Synthesize results
@@ -103,7 +103,7 @@ async def process_sub_question(user_input: str, question: SubQuestion, openai: A
         status=ResearchStatus.SYNTHESIZING_RESULTS,
         details=f"Synthesizing results for question {question_index}/{total_questions}"
     ))
-    answer = await synthesize_combined_analysis(refined_analysis, pdf_result, question.question, openai)
+    answer = await synthesize_combined_analysis(refined_analysis, pdf_result, question.question, openai, update_status)
     logger.info(f"Synthesized answer length: {len(answer['answer'])}")
     
     question.answer = answer["answer"]
@@ -133,24 +133,29 @@ async def process_pdfs(pdf_links: List[str], user_input: str, sub_question: str,
 
     update_status(ResearchStatus.SUMMARIZING_PDF, f"Summarizing {len(list_of_processed_files)} PDFs...")
     logger.info(f"Starting PDF summary for {len(list_of_processed_files)} processed files")
-    full_pdf_summary = await summarize_pdf_analyses(list_of_processed_files, user_input, sub_question, openai)
+    full_pdf_summary = await summarize_pdf_analyses(list_of_processed_files, user_input, sub_question, openai, update_status)
     logger.info(f"PDF summary completed. Summary length: {len(full_pdf_summary['summary']) if isinstance(full_pdf_summary, dict) and 'summary' in full_pdf_summary else 'N/A'}")
     return full_pdf_summary
 
 async def process_pdf(pdf_link: str, user_input: str, sub_question: str, openai: AsyncOpenAI, update_status: Callable):
     pdf_name = pdf_link.split('/')[-1]
     logger.info(f"Starting processing of PDF: {pdf_name}")
-    update_status(ResearchStatus.PROCESSING_PDF, f"Processing PDF: {pdf_name[:30]}...")
+    update_status(ResearchProgress(
+        total_steps=5,
+        current_step=4,
+        status=ResearchStatus.PROCESSING_DOCUMENTS,
+        details=f"Processing PDF: {pdf_name[:30]}..."
+    ))
     
     try:
-        pdf_text = await convert_to_text(pdf_link)
+        pdf_text = await convert_to_text(pdf_link, update_status)
         logger.info(f"Converted PDF to text. Text length: {len(pdf_text)}")
         
         if len(pdf_text) < 100:  # Adjust this threshold as needed
             logger.warning(f"PDF text too short, possibly failed conversion: {len(pdf_text)} characters for {pdf_name}")
             return None
         
-        analysed = await analyze_with_gemini(pdf_text, user_input, sub_question, openai)
+        analysed = await analyze_with_gemini(pdf_text, user_input, sub_question, openai, update_status)
         logger.info(f"Completed Gemini analysis for PDF: {pdf_name}. Analysis length: {len(analysed)}")
         
         if len(analysed) < 2000:

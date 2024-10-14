@@ -8,10 +8,16 @@ from openai import AsyncOpenAI
 
 logger = logging.getLogger(__name__)
 
-async def analyze_with_gemini(text: str, user_input: str, sub_question: str, openai: AsyncOpenAI) -> str:
+async def analyze_with_gemini(text: str, user_input: str, sub_question: str, openai: AsyncOpenAI, update_status: Callable) -> str:
     logger.info(f"Starting analysis with Gemini for sub-question: {sub_question}")
     logger.info(f"User input: {user_input}")
     logger.info(f"Text length: {len(text)} characters")
+    update_status(ResearchProgress(
+        total_steps=5,
+        current_step=4,
+        status=ResearchStatus.PROCESSING_DOCUMENTS,
+        details=f"Analyzing PDF content for sub-question: {sub_question[:50]}..."
+    ))
 
     gemini_api_key = "AIzaSyAViB80an5gX6nJFZY2zQnna57a80OLKwk"
     if not gemini_api_key:

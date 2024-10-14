@@ -4,10 +4,16 @@ from models import RefinedAnalysis, FinalAnalysisRefinement, CompleteAnalysis
 
 logger = logging.getLogger(__name__)
 
-async def final_analysis_refiner(complete_analysis: CompleteAnalysis, user_input: str, sub_question: str, client: AsyncOpenAI) -> RefinedAnalysis:
+async def final_analysis_refiner(complete_analysis: CompleteAnalysis, user_input: str, sub_question: str, client: AsyncOpenAI, update_status: Callable) -> RefinedAnalysis:
     logger.info(f"Starting final analysis refinement for sub-question: {sub_question}")
     logger.info(f"User input: {user_input}")
     logger.info(f"Complete analysis points count: {len(complete_analysis.analysis)}")
+    update_status(ResearchProgress(
+        total_steps=5,
+        current_step=5,
+        status=ResearchStatus.REFINING_ANALYSIS,
+        details=f"Refining analysis for sub-question: {sub_question[:50]}..."
+    ))
 
     formatted_points = "\n\n".join([f"Point: {point.point}\nReference: {point.reference}" for point in complete_analysis.analysis])
     logger.info(f"Formatted points (first 500 chars): {formatted_points[:500]}...")

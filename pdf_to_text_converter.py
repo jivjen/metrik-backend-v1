@@ -9,7 +9,12 @@ logger = logging.getLogger(__name__)
 
 async def convert_to_text(file_url: str, update_status: Callable) -> str:
     logger.info(f"Starting conversion for file: {file_url}")
-    update_status(ResearchStatus.PDF_CONVERSION_STARTED, f"Starting conversion for file: {os.path.basename(file_url)}")
+    update_status(ResearchProgress(
+        total_steps=5,
+        current_step=4,
+        status=ResearchStatus.PROCESSING_DOCUMENTS,
+        details=f"Converting PDF to text: {os.path.basename(file_url)}"
+    ))
     start_time = time()
 
     async def jina_ai_conversion():

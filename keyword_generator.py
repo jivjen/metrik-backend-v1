@@ -5,9 +5,15 @@ from models import KeywordGeneration
 
 logger = logging.getLogger(__name__)
 
-async def keyword_generator(user_input: str, sub_question: str, client: AsyncOpenAI) -> ParsedChatCompletion[KeywordGeneration]:
+async def keyword_generator(user_input: str, sub_question: str, client: AsyncOpenAI, update_status: Callable) -> ParsedChatCompletion[KeywordGeneration]:
     try:
         logger.info(f"Starting keyword generation for main query: '{user_input}' and sub-question: '{sub_question}'")
+        update_status(ResearchProgress(
+            total_steps=5,
+            current_step=2,
+            status=ResearchStatus.GENERATING_KEYWORDS,
+            details=f"Generating keywords for sub-question: {sub_question[:50]}..."
+        ))
         logger.info(f"Preparing OpenAI API request for keyword generation")
         system_content = """
         You are a professional Google search researcher.

@@ -10,7 +10,12 @@ google_search = build("customsearch", "v1", developerKey=GOOGLE_API_KEY).cse()
 
 async def search_for_pdf_files(keywords: list[str], max_results: int = 30, max_attempts: int = 20, update_status: Callable):
     logger.info(f"Starting PDF search with {len(keywords)} keywords, max_results={max_results}, max_attempts={max_attempts}")
-    update_status(ResearchStatus.PDF_SEARCH_STARTED, f"Starting PDF search with {len(keywords)} keywords")
+    update_status(ResearchProgress(
+        total_steps=5,
+        current_step=3,
+        status=ResearchStatus.SEARCHING_DOCUMENTS,
+        details=f"Starting PDF search with {len(keywords)} keywords"
+    ))
     logger.info(f"Keywords: {keywords}")
     pdf_links = []
     attempts = 0
