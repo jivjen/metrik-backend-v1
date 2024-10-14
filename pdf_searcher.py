@@ -2,6 +2,7 @@ from googleapiclient.discovery import build
 import logging
 from typing import Callable
 from models import ResearchStatus, ResearchProgress
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +27,7 @@ async def search_for_pdf_files(keywords: list[str], update_status: Callable, max
             break
         try:
             logger.info(f"Searching for keyword: '{keyword}'")
-            update_status(ResearchStatus.PDF_SEARCH_KEYWORD, f"Searching PDFs for keyword {idx}/{len(keywords)}: {keyword}")
+            update_status(ResearchStatus.DOCUMENT_SEARCH_KEYWORD, f"Searching PDFs for keyword {idx}/{len(keywords)}: {keyword}")
             results = google_search.list(q=keyword, cx=GOOGLE_CSE_ID).execute()
             logger.info(f"Received {len(results.get('items', []))} items for keyword: '{keyword}'")
             for item in results.get('items', []):
@@ -37,13 +38,12 @@ async def search_for_pdf_files(keywords: list[str], update_status: Callable, max
                     logger.info(f"Found PDF: {file_url}")
                     pdf_links.append(file_url)
                 attempts += 1
-            update_status(ResearchStatus.PDF_SEARCH_KEYWORD_COMPLETED, f"Completed search for keyword {idx}/{len(keywords)}: {keyword}")
+            update_status(ResearchStatus.DOCUMENT_SEARCH_KEYWORD_COMPLETED, f"Completed search for keyword {idx}/{len(keywords)}: {keyword}")
         except Exception as e:
             logger.error(f"Error occurred while searching for keyword '{keyword}': {e}", exc_info=True)
-            update_status(ResearchStatus.PDF_SEARCH_ERROR, f"Error searching PDFs for keyword: {keyword}")
             attempts += 1
     
     logger.info(f"PDF search completed. Found {len(pdf_links)} PDF links")
-    update_status(ResearchStatus.PDF_SEARCH_COMPLETED, f"PDF search completed. Found {len(pdf_links)} PDF links")
+    update_status(ResearchStatus.DOCUMENT_SEARCH_KEYWORD_COMPLETED, f"PDF search completed. Found {len(pdf_links)} PDF links")
     logger.info(f"PDF links found: {pdf_links}")
     return pdf_links
