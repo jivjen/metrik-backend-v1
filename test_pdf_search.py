@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import sys
 from pdf_searcher import search_for_pdf_files
 
 # Set up logging
@@ -9,6 +10,8 @@ logger = logging.getLogger(__name__)
 async def main():
     keywords = ["artificial intelligence", "machine learning"]
     logger.info(f"Starting PDF search with keywords: {keywords}")
+    logger.info(f"Python version: {sys.version}")
+    logger.info(f"Asyncio event loop: {asyncio.get_event_loop().__class__.__name__}")
     
     try:
         logger.info("Calling search_for_pdf_files function")
