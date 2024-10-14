@@ -85,6 +85,8 @@ async def process_sub_question(user_input: str, question: SubQuestion, openai: A
     question.references = answer["references"]
     logger.info(f"Updated question with answer (length: {len(question.answer)}) and {len(question.references)} references")
 
+    logger.info(f"SUB QUESTION THISSS -> QUESTION: {question.question} \n {question.answer} \n REFERENCES \n {question.references}")
+
     return refined_analysis, full_pdf_summary
 
 async def process_pdfs(pdf_links: List[str], user_input: str, sub_question: str, openai: AsyncOpenAI, update_status: Callable):

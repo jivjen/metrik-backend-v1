@@ -21,7 +21,7 @@ async def get_tavily_api_key():
     logger.info("Retrieving Tavily API key")
     last_used_key = db.tavily_keys.find_one({"_id": "last_used_key"})
     current_key_num = int(last_used_key["key_num"]) if last_used_key else 1
-    logger.debug(f"Current key number: {current_key_num}")
+    logger.info(f"Current key number: {current_key_num}")
     
     api_key = os.getenv(f"TAVILY_API_KEY_{current_key_num}")
     if not api_key:
@@ -34,7 +34,7 @@ async def get_tavily_api_key():
 async def update_tavily_api_key(current_key_num):
     logger.info(f"Updating Tavily API key from number {current_key_num}")
     next_key_num = (current_key_num % 4) + 1  # Assuming we have 4 API keys
-    logger.debug(f"Next key number: {next_key_num}")
+    logger.info(f"Next key number: {next_key_num}")
     db.tavily_keys.update_one({"_id": "last_used_key"}, {"$set": {"key_num": str(next_key_num)}}, upsert=True)
     logger.info(f"Updated Tavily API key to number {next_key_num}")
 
@@ -43,12 +43,12 @@ async def process_keyword(keyword: str, user_input: str, sub_question: str, open
     max_retries = 4  # Maximum number of API keys to try
     for attempt in range(max_retries):
         try:
-            logger.debug(f"Attempt {attempt + 1} of {max_retries}")
+            logger.info(f"Attempt {attempt + 1} of {max_retries}")
             api_key, current_key_num = await get_tavily_api_key()
             tavily_client = TavilyClient(api_key=api_key)
             logger.info(f"Sending search request to Tavily for keyword: '{keyword}'")
             tavily_result = await asyncio.to_thread(tavily_client.get_search_context, keyword)
-            logger.debug(f"Received Tavily search result (first 100 chars): {tavily_result[:100]}...")
+            logger.info(f"Received Tavily search result (first 100 chars): {tavily_result[:100]}...")
             break
         except Exception as e:
             logger.error(f"Error in Tavily search for keyword '{keyword}': {str(e)}")
@@ -59,7 +59,7 @@ async def process_keyword(keyword: str, user_input: str, sub_question: str, open
 
     logger.info(f"Analyzing Tavily search result for keyword: '{keyword}'")
     tavily_analyzed = await search_result_analyzer(tavily_result, user_input, sub_question, openai)
-    logger.debug(f"Analyzed result for keyword '{keyword}' (first 100 chars): {str(tavily_analyzed)[:100]}...")
+    logger.info(f"Analyzed result for keyword '{keyword}' (first 100 chars): {str(tavily_analyzed)[:100]}...")
 
     logger.info(f"Completed processing for keyword: '{keyword}'")
     return tavily_analyzed
