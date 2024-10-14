@@ -21,7 +21,7 @@ async def convert_to_text(file_url: str, update_status: Callable) -> str:
 
     async def primary_conversion():
         logger.info(f"Attempting primary conversion for {file_url}")
-        update_status(ResearchStatus.PRIMARY_CONVERSION, f"Attempting primary conversion for {os.path.basename(file_url)}")
+        update_status(ResearchStatus.PRIMARY_CONVERSION, f"Attempting PDF conversion for {os.path.basename(file_url)}")
         try:
             url = f'https://r.jina.ai/{file_url}'
             headers = {
@@ -37,16 +37,14 @@ async def convert_to_text(file_url: str, update_status: Callable) -> str:
                 return text
             else:
                 logger.error(f"Error converting {file_url} to text using primary method. Status code: {response.status_code}")
-                update_status(ResearchStatus.PRIMARY_CONVERSION_FAILED, f"Failed to convert {os.path.basename(file_url)} using primary method")
                 return None
         except Exception as e:
             logger.exception(f"Exception during primary conversion for {file_url}: {str(e)}")
-            update_status(ResearchStatus.PRIMARY_CONVERSION_ERROR, f"Error during primary conversion for {os.path.basename(file_url)}")
             return None
 
     async def secondary_conversion():
         logger.info(f"Attempting secondary conversion for {file_url}")
-        update_status(ResearchStatus.SECONDARY_CONVERSION, f"Attempting secondary conversion for {os.path.basename(file_url)}")
+        update_status(ResearchStatus.SECONDARY_CONVERSION, f"Attempting PDF conversion for {os.path.basename(file_url)}")
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
@@ -55,7 +53,6 @@ async def convert_to_text(file_url: str, update_status: Callable) -> str:
             update_status(ResearchStatus.DOCUMENT_DOWNLOAD, f"Downloading {os.path.basename(file_url)}")
             response = await asyncio.to_thread(requests.get, file_url, headers=headers)
             if response.status_code != 200:
-                logger.error(f"Error downloading file from {file_url}. Status code: {response.status_code}")
                 update_status(ResearchStatus.DOCUMENT_DOWNLOAD_FAILED, f"Failed to download {os.path.basename(file_url)}")
                 return ""
             
@@ -80,12 +77,11 @@ async def convert_to_text(file_url: str, update_status: Callable) -> str:
                 os.remove(file_name)
 
             logger.info(f"Successfully converted {file_url} to text using secondary method")
-            update_status(ResearchStatus.SECONDARY_CONVERSION_COMPLETED, f"Successfully converted {file_name} using secondary method")
+            update_status(ResearchStatus.SECONDARY_CONVERSION_COMPLETED, f"Successfully converted {file_name}")
             logger.info(f"Secondary conversion result (first 100 chars): {text[:100]}")
             return text
         except Exception as e:
             logger.exception(f"Exception during secondary conversion for {file_url}: {str(e)}")
-            update_status(ResearchStatus.SECONDARY_CONVERSION_ERROR, f"Error during secondary conversion for {os.path.basename(file_url)}")
             return ""
 
     # Try primary conversion first, then fall back to secondary
@@ -93,7 +89,6 @@ async def convert_to_text(file_url: str, update_status: Callable) -> str:
     logger.info(f"Primary conversion result length: {len(text) if text else 0}")
     if not text or len(text) < 3000:
         logger.warning(f"Primary conversion failed or returned insufficient text for {file_url}. Falling back to secondary method.")
-        update_status(ResearchStatus.CONVERSION_FALLBACK, f"Falling back to secondary method for {os.path.basename(file_url)}")
         logger.info(f"Primary conversion result: {text}")
         text = await secondary_conversion()
 
