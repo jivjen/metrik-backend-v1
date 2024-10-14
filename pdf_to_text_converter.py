@@ -19,34 +19,34 @@ async def convert_to_text(file_url: str, update_status: Callable) -> str:
     ))
     start_time = time()
 
-    async def jina_ai_conversion():
-        logger.info(f"Attempting Jina AI conversion for {file_url}")
-        update_status(ResearchStatus.JINA_AI_CONVERSION, f"Attempting Jina AI conversion for {os.path.basename(file_url)}")
+    async def primary_conversion():
+        logger.info(f"Attempting primary conversion for {file_url}")
+        update_status(ResearchStatus.PRIMARY_CONVERSION, f"Attempting primary conversion for {os.path.basename(file_url)}")
         try:
             url = f'https://r.jina.ai/{file_url}'
             headers = {
                 "Authorization": "Bearer jina_cdfde91597854ce89ef3daed22947239autBdM5UrHeOgwRczhd1JYzs51OH"
             }
-            logger.info(f"Sending GET request to Jina AI for {file_url}")
+            logger.info(f"Sending GET request for primary conversion of {file_url}")
             response = await asyncio.to_thread(requests.get, url, headers=headers)
             if response.status_code == 200:
                 text = response.text
-                logger.info(f"Successfully converted {file_url} to text using Jina AI")
-                update_status(ResearchStatus.JINA_AI_CONVERSION_COMPLETED, f"Successfully converted {os.path.basename(file_url)} using Jina AI")
-                logger.info(f"Jina AI conversion result (first 100 chars): {text[:100]}")
+                logger.info(f"Successfully converted {file_url} to text using primary method")
+                update_status(ResearchStatus.PRIMARY_CONVERSION_COMPLETED, f"Successfully converted {os.path.basename(file_url)} using primary method")
+                logger.info(f"Primary conversion result (first 100 chars): {text[:100]}")
                 return text
             else:
-                logger.error(f"Error converting {file_url} to text using Jina AI. Status code: {response.status_code}")
-                update_status(ResearchStatus.JINA_AI_CONVERSION_FAILED, f"Failed to convert {os.path.basename(file_url)} using Jina AI")
+                logger.error(f"Error converting {file_url} to text using primary method. Status code: {response.status_code}")
+                update_status(ResearchStatus.PRIMARY_CONVERSION_FAILED, f"Failed to convert {os.path.basename(file_url)} using primary method")
                 return None
         except Exception as e:
-            logger.exception(f"Exception during Jina AI conversion for {file_url}: {str(e)}")
-            update_status(ResearchStatus.JINA_AI_CONVERSION_ERROR, f"Error during Jina AI conversion for {os.path.basename(file_url)}")
+            logger.exception(f"Exception during primary conversion for {file_url}: {str(e)}")
+            update_status(ResearchStatus.PRIMARY_CONVERSION_ERROR, f"Error during primary conversion for {os.path.basename(file_url)}")
             return None
 
-    async def mupdf_conversion():
-        logger.info(f"Attempting PyMuPDF conversion for {file_url}")
-        update_status(ResearchStatus.PYMUPDF_CONVERSION, f"Attempting PyMuPDF conversion for {os.path.basename(file_url)}")
+    async def secondary_conversion():
+        logger.info(f"Attempting secondary conversion for {file_url}")
+        update_status(ResearchStatus.SECONDARY_CONVERSION, f"Attempting secondary conversion for {os.path.basename(file_url)}")
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
