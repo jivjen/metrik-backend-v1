@@ -52,12 +52,22 @@ async def process_keyword(keyword: str, user_input: str, sub_question: str, open
     for attempt in range(max_retries):
         try:
             logger.info(f"Attempt {attempt + 1} of {max_retries}")
-            update_status(ResearchStatus.SEARCHING_ONLINE, f"Searching Online for keyword: {keyword} (Attempt {attempt + 1})")
+            update_status(ResearchProgress(
+                total_steps=5,
+                current_step=3,
+                status=ResearchStatus.SEARCHING_ONLINE,
+                details=f"Searching Online for keyword: {keyword} (Attempt {attempt + 1})"
+            ))
             api_key, current_key_num = await get_tavily_api_key()
             tavily_client = TavilyClient(api_key=api_key)
             tavily_result = await asyncio.to_thread(tavily_client.get_search_context, keyword)
             logger.info(f"Received Tavily search result (first 100 chars): {tavily_result[:100]}...")
-            update_status(ResearchStatus.SEARCH_COMPLETED, f"Completed search for keyword: {keyword}")
+            update_status(ResearchProgress(
+                total_steps=5,
+                current_step=3,
+                status=ResearchStatus.SEARCH_COMPLETED,
+                details=f"Completed search for keyword: {keyword}"
+            ))
             break
         except Exception as e:
             logger.error(f"Error in Tavily search for keyword '{keyword}': {str(e)}")
@@ -67,10 +77,20 @@ async def process_keyword(keyword: str, user_input: str, sub_question: str, open
                 tavily_result = ""
 
     logger.info(f"Analyzing Tavily search result for keyword: '{keyword}'")
-    update_status(ResearchStatus.ANALYZING_SEARCH_RESULT, f"Analyzing search result for keyword: {keyword}")
+    update_status(ResearchProgress(
+        total_steps=5,
+        current_step=3,
+        status=ResearchStatus.ANALYZING_SEARCH_RESULT,
+        details=f"Analyzing search result for keyword: {keyword}"
+    ))
     tavily_analyzed = await search_result_analyzer(tavily_result, user_input, sub_question, openai)
     logger.info(f"Analyzed result for keyword '{keyword}' (first 100 chars): {str(tavily_analyzed)[:100]}...")
-    update_status(ResearchStatus.KEYWORD_ANALYSIS_COMPLETED, f"Completed analysis for keyword: {keyword}")
+    update_status(ResearchProgress(
+        total_steps=5,
+        current_step=3,
+        status=ResearchStatus.KEYWORD_ANALYSIS_COMPLETED,
+        details=f"Completed analysis for keyword: {keyword}"
+    ))
 
     logger.info(f"Completed processing for keyword: '{keyword}'")
     return tavily_analyzed
