@@ -12,17 +12,27 @@ from gemini_pdf_analyser import analyze_with_gemini
 from gemini_summarize_pdf_analysis import summarize_pdf_analyses
 from gemini_final_answerer import final_synthesis
 from gemini_sub_question_answerer import synthesize_combined_analysis
-from models import SubQuestion, CompleteAnalysis, PDFAnalysis, ResearchStatus
+from models import SubQuestion, CompleteAnalysis, PDFAnalysis, ResearchStatus, ResearchProgress
 from openai import AsyncOpenAI
 
 logger = logging.getLogger(__name__)
 
-async def process_sub_question(user_input: str, question: SubQuestion, openai: AsyncOpenAI, update_status: Callable):
-    logger.info(f"Processing sub-question: {question.question}")
-    update_status(ResearchStatus.PROCESSING_SUB_QUESTIONS, f"Processing sub-question: {question.question[:50]}...")
+async def process_sub_question(user_input: str, question: SubQuestion, openai: AsyncOpenAI, update_status: Callable, question_index: int, total_questions: int):
+    logger.info(f"Processing sub-question {question_index}/{total_questions}: {question.question}")
+    update_status(ResearchProgress(
+        total_steps=5,
+        current_step=1,
+        status=ResearchStatus.PROCESSING_SUB_QUESTIONS,
+        details=f"Analyzing research question {question_index}/{total_questions}: {question.question[:50]}..."
+    ))
     
     # Generate keywords
-    update_status(ResearchStatus.GENERATING_KEYWORDS, f"Generating keywords for: {question.question[:50]}...")
+    update_status(ResearchProgress(
+        total_steps=5,
+        current_step=2,
+        status=ResearchStatus.GENERATING_KEYWORDS,
+        details=f"Generating search terms for question {question_index}/{total_questions}"
+    ))
     logger.info(f"Starting keyword generation for user input: '{user_input}' and sub-question: '{question.question}'")
     
     keywords_task = keyword_generator(user_input, question.question, openai)
@@ -36,49 +46,75 @@ async def process_sub_question(user_input: str, question: SubQuestion, openai: A
     logger.info(f"Generated keywords: {extracted_keywords}")
     logger.info(f"Generated file keywords: {extracted_file_keywords}")
     logger.info(f"Keyword generation completed. Regular keywords: {len(extracted_keywords)}, File keywords: {len(extracted_file_keywords)}")
-    update_status(ResearchStatus.KEYWORDS_GENERATED, f"Generated {len(extracted_keywords)} regular keywords and {len(extracted_file_keywords)} file keywords")
+    update_status(ResearchProgress(
+        total_steps=5,
+        current_step=2,
+        status=ResearchStatus.KEYWORDS_GENERATED,
+        details=f"Generated {len(extracted_keywords) + len(extracted_file_keywords)} search terms for question {question_index}/{total_questions}"
+    ))
 
-    # Process keywords
-    update_status(ResearchStatus.PROCESSING_KEYWORDS, f"Processing {len(extracted_keywords)} keywords...")
+    # Process keywords and search for documents
+    update_status(ResearchProgress(
+        total_steps=5,
+        current_step=3,
+        status=ResearchStatus.SEARCHING_ONLINE,
+        details=f"Searching online resources for question {question_index}/{total_questions}"
+    ))
     keyword_tasks = [process_keyword(keyword, user_input, question.question, openai, update_status) for keyword in extracted_keywords]
-    
-    # Start PDF search
-    update_status(ResearchStatus.SEARCHING_PDFS, f"Searching for PDFs using {len(extracted_file_keywords)} keywords...")
     pdf_search_task = asyncio.create_task(search_for_pdf_files(extracted_file_keywords))
     
-    # Gather keyword results
-    keyword_results = await asyncio.gather(*keyword_tasks)
-    logger.info(f"Processed {len(keyword_results)} keywords")
-    update_status(ResearchStatus.KEYWORDS_PROCESSED, f"Processed {len(keyword_results)} keywords")
+    keyword_results, pdf_links = await asyncio.gather(asyncio.gather(*keyword_tasks), pdf_search_task)
     
-    # Get PDF search results
-    pdf_links = await pdf_search_task
-    logger.info(f"PDF search completed. Found {len(pdf_links)} PDF links")
-    update_status(ResearchStatus.PDFS_FOUND, f"Found {len(pdf_links)} PDF documents")
+    logger.info(f"Processed {len(keyword_results)} keywords")
+    logger.info(f"Found {len(pdf_links)} relevant documents")
+    update_status(ResearchProgress(
+        total_steps=5,
+        current_step=3,
+        status=ResearchStatus.SEARCH_COMPLETED,
+        details=f"Completed online search for question {question_index}/{total_questions}"
+    ))
     
     # Process PDFs
-    update_status(ResearchStatus.PROCESSING_PDFS, f"Processing {len(pdf_links)} PDFs...")
+    update_status(ResearchProgress(
+        total_steps=5,
+        current_step=4,
+        status=ResearchStatus.PROCESSING_DOCUMENTS,
+        details=f"Analyzing {len(pdf_links)} documents for question {question_index}/{total_questions}"
+    ))
     pdf_result = await process_pdfs(pdf_links, user_input, question.question, openai, update_status)
     
-    # Combine analyses
-    update_status(ResearchStatus.COMBINING_ANALYSES, "Combining keyword and PDF analyses...")
+    # Combine and refine analyses
+    update_status(ResearchProgress(
+        total_steps=5,
+        current_step=5,
+        status=ResearchStatus.COMBINING_ANALYSES,
+        details=f"Combining analyses for question {question_index}/{total_questions}"
+    ))
     complete_analysis = CompleteAnalysis(analysis=[point for result in keyword_results for point in result.points])
     logger.info(f"Created complete analysis with {len(complete_analysis.analysis)} points")
     
-    # Refine analysis
-    update_status(ResearchStatus.REFINING_ANALYSIS, f"Refining analysis for sub-question: {question.question[:50]}...")
     refined_analysis = await final_analysis_refiner(complete_analysis, user_input, question.question, openai)
     logger.info(f"Refined analysis length: {len(refined_analysis.refined_analysis)}")
 
     # Synthesize results
-    update_status(ResearchStatus.SYNTHESIZING_RESULTS, f"Synthesizing results for sub-question: {question.question[:50]}...")
+    update_status(ResearchProgress(
+        total_steps=5,
+        current_step=5,
+        status=ResearchStatus.SYNTHESIZING_RESULTS,
+        details=f"Synthesizing results for question {question_index}/{total_questions}"
+    ))
     answer = await synthesize_combined_analysis(refined_analysis, pdf_result, question.question, openai)
     logger.info(f"Synthesized answer length: {len(answer['answer'])}")
     
     question.answer = answer["answer"]
     question.references = answer["references"]
     logger.info(f"Updated question with answer (length: {len(question.answer)}) and {len(question.references)} references")
-    update_status(ResearchStatus.SUB_QUESTION_COMPLETED, f"Completed sub-question: {question.question[:50]}...")
+    update_status(ResearchProgress(
+        total_steps=5,
+        current_step=5,
+        status=ResearchStatus.SUB_QUESTION_COMPLETED,
+        details=f"Completed research question {question_index}/{total_questions}: {question.question[:50]}..."
+    ))
 
     return refined_analysis, pdf_result
 
@@ -133,7 +169,14 @@ async def research(user_input: str, update_status: Callable):
     openai = AsyncOpenAI(api_key="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")
     logger.info("OpenAI client initialized")
 
-    update_status(ResearchStatus.GENERATING_SUB_QUESTIONS, "Generating sub-questions")
+    total_steps = 5  # Adjust this based on the main steps in your research process
+    progress = ResearchProgress(total_steps=total_steps, current_step=0, status=ResearchStatus.STARTED, details="Starting research")
+    update_status(progress)
+
+    progress.current_step += 1
+    progress.status = ResearchStatus.GENERATING_SUB_QUESTIONS
+    progress.details = "Generating research questions"
+    update_status(progress)
     logger.info("Starting sub-question generation")
     sub_questions_response = await generate_sub_questions(user_input, openai)
     sub_questions = sub_questions_response.choices[0].message.parsed.questions
@@ -142,9 +185,12 @@ async def research(user_input: str, update_status: Callable):
     logger.info(f"Sub-questions: {sub_questions}")
     logger.info(f"Format notes: {format_notes}")
 
-    # Process all sub-questions concurrently
+    progress.current_step += 1
+    progress.status = ResearchStatus.PROCESSING_SUB_QUESTIONS
+    progress.details = f"Analyzing {len(sub_questions)} research questions"
+    update_status(progress)
     logger.info("Starting processing of sub-questions")
-    sub_question_tasks = [process_sub_question(user_input, question, openai, update_status) for question in sub_questions]
+    sub_question_tasks = [process_sub_question(user_input, question, openai, update_status, idx, len(sub_questions)) for idx, question in enumerate(sub_questions, 1)]
     logger.info(f"Created {len(sub_question_tasks)} tasks for sub-question processing")
     
     results = await asyncio.gather(*sub_question_tasks)
@@ -155,11 +201,18 @@ async def research(user_input: str, update_status: Callable):
     full_pdf = [result[1] for result in results]
     logger.info(f"Extracted {len(full_normal)} normal analyses and {len(full_pdf)} PDF analyses")
 
-    update_status(ResearchStatus.SYNTHESIZING_RESULTS, "Synthesizing final results")
+    progress.current_step += 1
+    progress.status = ResearchStatus.SYNTHESIZING_RESULTS
+    progress.details = "Synthesizing final results"
+    update_status(progress)
     logger.info("Starting final synthesis")
     full_final_answer = await final_synthesis(full_pdf, full_normal, user_input, format_notes, openai)
     logger.info("Final synthesis completed")
     logger.info(f"Final answer length: {len(full_final_answer['answer']) if isinstance(full_final_answer, dict) and 'answer' in full_final_answer else 'N/A'}")
 
+    progress.current_step = total_steps
+    progress.status = ResearchStatus.COMPLETED
+    progress.details = "Research completed successfully"
+    update_status(progress)
     logger.info("Research completed successfully")
     return full_final_answer

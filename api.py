@@ -8,7 +8,7 @@ from researcher import research
 import logging
 from pymongo import MongoClient
 from datetime import datetime
-from models import ResearchStatus
+from models import ResearchStatus, ResearchProgress
 from logging_config import setup_logger
 
 app = FastAPI()
@@ -21,14 +21,12 @@ class ResearchRequest(BaseModel):
     user_input: str
 
 class JobStatus(BaseModel):
-    status: ResearchStatus
-    details: str
+    progress: ResearchProgress
     sub_statuses: List[Dict[str, str]] = []
 
-def update_job_status(job_id: str, status: ResearchStatus, details: str, sub_status: Dict[str, str] = None):
+def update_job_status(job_id: str, progress: ResearchProgress, sub_status: Dict[str, str] = None):
     update_data = {
-        "status": status,
-        "details": details,
+        "progress": progress.dict(),
         "updated_at": datetime.utcnow()
     }
     if sub_status:
@@ -40,16 +38,16 @@ def update_job_status(job_id: str, status: ResearchStatus, details: str, sub_sta
         upsert=True
     )
     logger = logging.getLogger()
-    logger.info(f"Job status updated: {status} - {details}")
+    logger.info(f"Job status updated: {progress.status} - {progress.details}")
 
 async def run_research(job_id: str, user_input: str):
     logger = setup_logger(job_id)
-    update_job_status(job_id, ResearchStatus.STARTED, "Starting research")
+    update_job_status(job_id, ResearchProgress(total_steps=5, current_step=0, status=ResearchStatus.STARTED, details="Starting research"))
     
     try:
         logger.info(f"Starting research for job {job_id}")
         logger.debug(f"User input: {user_input}")
-        result = await research(user_input, lambda status, details: update_job_status(job_id, status, details))
+        result = await research(user_input, lambda progress: update_job_status(job_id, progress))
         logger.info(f"Research completed for job {job_id}")
         logger.debug(f"Research result: {result}")
         
@@ -62,10 +60,10 @@ async def run_research(job_id: str, user_input: str):
         })
         logger.info(f"Research result stored in MongoDB for job {job_id}")
         
-        update_job_status(job_id, ResearchStatus.COMPLETED, "Research finished")
+        update_job_status(job_id, ResearchProgress(total_steps=5, current_step=5, status=ResearchStatus.COMPLETED, details="Research finished"))
     except Exception as e:
         logger.error(f"Error in research for job {job_id}: {str(e)}", exc_info=True)
-        update_job_status(job_id, ResearchStatus.FAILED, str(e))
+        update_job_status(job_id, ResearchProgress(total_steps=5, current_step=5, status=ResearchStatus.FAILED, details=str(e)))
     finally:
         logging.shutdown()
         logger.info(f"Logging finished for job {job_id}")
@@ -89,8 +87,7 @@ async def get_job_status(job_id: str):
         return {"status": "Not Found"}
     logger.debug(f"Job status: {job_status}")
     return {
-        "status": job_status["status"],
-        "details": job_status["details"],
+        "progress": job_status["progress"],
         "sub_statuses": job_status.get("sub_statuses", [])
     }
 
