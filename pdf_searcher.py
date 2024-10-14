@@ -10,7 +10,7 @@ GOOGLE_CSE_ID = "82236a47a9b6e47e6"
 
 google_search = build("customsearch", "v1", developerKey=GOOGLE_API_KEY).cse()
 
-async def search_for_pdf_files(keywords: list[str], max_results: int = 30, max_attempts: int = 20, update_status: Callable):
+async def search_for_pdf_files(keywords: list[str], update_status: Callable, max_results: int = 30, max_attempts: int = 20):
     logger.info(f"Starting PDF search with {len(keywords)} keywords, max_results={max_results}, max_attempts={max_attempts}")
     update_status(ResearchProgress(
         total_steps=5,
