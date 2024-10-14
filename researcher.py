@@ -21,9 +21,9 @@ async def process_sub_question(user_input: str, question: SubQuestion, openai: A
     logger.info(f"Processing sub-question: {question.question}")
     update_status(ResearchStatus.PROCESSING_SUB_QUESTIONS, f"Processing sub-question: {question.question[:50]}...")
     
-    # Generate keywords, process keywords, and handle PDFs concurrently
-    update_status(ResearchStatus.GENERATING_KEYWORDS, f"Generating and processing keywords, searching PDFs for: {question.question[:50]}...")
-    logger.info(f"Starting concurrent operations for user input: '{user_input}' and sub-question: '{question.question}'")
+    # Generate keywords
+    update_status(ResearchStatus.GENERATING_KEYWORDS, f"Generating keywords for: {question.question[:50]}...")
+    logger.info(f"Starting keyword generation for user input: '{user_input}' and sub-question: '{question.question}'")
     
     keywords_task = keyword_generator(user_input, question.question, openai)
     file_keywords_task = file_keyword_generator(question.question, openai)
@@ -36,58 +36,51 @@ async def process_sub_question(user_input: str, question: SubQuestion, openai: A
     logger.info(f"Generated keywords: {extracted_keywords}")
     logger.info(f"Generated file keywords: {extracted_file_keywords}")
     logger.info(f"Keyword generation completed. Regular keywords: {len(extracted_keywords)}, File keywords: {len(extracted_file_keywords)}")
+    update_status(ResearchStatus.KEYWORDS_GENERATED, f"Generated {len(extracted_keywords)} regular keywords and {len(extracted_file_keywords)} file keywords")
 
-    # Start keyword tasks concurrently
-    keyword_tasks = [process_keyword(keyword, user_input, question.question, openai) for keyword in extracted_keywords]
+    # Process keywords
+    update_status(ResearchStatus.PROCESSING_KEYWORDS, f"Processing {len(extracted_keywords)} keywords...")
+    keyword_tasks = [process_keyword(keyword, user_input, question.question, openai, update_status) for keyword in extracted_keywords]
     
-    logger.info("Starting PDF search task")
+    # Start PDF search
+    update_status(ResearchStatus.SEARCHING_PDFS, f"Searching for PDFs using {len(extracted_file_keywords)} keywords...")
     pdf_search_task = asyncio.create_task(search_for_pdf_files(extracted_file_keywords))
     
-    logger.info("Starting to gather keyword tasks")
+    # Gather keyword results
     keyword_results = await asyncio.gather(*keyword_tasks)
-    logger.info("All keyword tasks gathered successfully")
+    logger.info(f"Processed {len(keyword_results)} keywords")
+    update_status(ResearchStatus.KEYWORDS_PROCESSED, f"Processed {len(keyword_results)} keywords")
     
-    logger.info("Waiting for PDF search task to complete")
+    # Get PDF search results
     pdf_links = await pdf_search_task
-    logger.info(f"PDF search completed. Received {len(pdf_links)} PDF links")
-    
-    logger.info(f"Received {len(keyword_results)} keyword results")
+    logger.info(f"PDF search completed. Found {len(pdf_links)} PDF links")
+    update_status(ResearchStatus.PDFS_FOUND, f"Found {len(pdf_links)} PDF documents")
     
     # Process PDFs
-    update_status(ResearchStatus.PROCESSING_PDF, f"Processing PDFs for: {question.question[:50]}...")
-    logger.info("Starting PDF processing")
+    update_status(ResearchStatus.PROCESSING_PDFS, f"Processing {len(pdf_links)} PDFs...")
     pdf_result = await process_pdfs(pdf_links, user_input, question.question, openai, update_status)
     
-    logger.info("Keyword processing and PDF processing completed.")
-    logger.info(f"Received {len(keyword_results)} keyword results and PDF processing result")
-    logger.info(f"PDF result type: {type(pdf_result)}")
-    
+    # Combine analyses
+    update_status(ResearchStatus.COMBINING_ANALYSES, "Combining keyword and PDF analyses...")
     complete_analysis = CompleteAnalysis(analysis=[point for result in keyword_results for point in result.points])
     logger.info(f"Created complete analysis with {len(complete_analysis.analysis)} points")
     
-    update_status(ResearchStatus.REFINING_ANALYSIS, f"Refining analysis for sub-question: {question.question}")
-    logger.info("Starting final analysis refinement...")
+    # Refine analysis
+    update_status(ResearchStatus.REFINING_ANALYSIS, f"Refining analysis for sub-question: {question.question[:50]}...")
     refined_analysis = await final_analysis_refiner(complete_analysis, user_input, question.question, openai)
-    logger.info("Final analysis refinement completed.")
     logger.info(f"Refined analysis length: {len(refined_analysis.refined_analysis)}")
 
-    full_pdf_summary = pdf_result
-    logger.info("PDF analysis completed.")
-    logger.info(f"PDF summary length: {len(full_pdf_summary['summary']) if isinstance(full_pdf_summary, dict) and 'summary' in full_pdf_summary else 'N/A'}")
-
-    update_status(ResearchStatus.SYNTHESIZING_RESULTS, f"Synthesizing results for sub-question: {question.question}")
-    logger.info("Starting synthesis of combined analysis...")
-    answer = await synthesize_combined_analysis(refined_analysis, full_pdf_summary, question.question, openai)
-    logger.info("Synthesis of combined analysis completed.")
+    # Synthesize results
+    update_status(ResearchStatus.SYNTHESIZING_RESULTS, f"Synthesizing results for sub-question: {question.question[:50]}...")
+    answer = await synthesize_combined_analysis(refined_analysis, pdf_result, question.question, openai)
     logger.info(f"Synthesized answer length: {len(answer['answer'])}")
     
     question.answer = answer["answer"]
     question.references = answer["references"]
     logger.info(f"Updated question with answer (length: {len(question.answer)}) and {len(question.references)} references")
+    update_status(ResearchStatus.SUB_QUESTION_COMPLETED, f"Completed sub-question: {question.question[:50]}...")
 
-    logger.info(f"SUB QUESTION THISSS -> QUESTION: {question.question} \n {question.answer} \n REFERENCES \n {question.references}")
-
-    return refined_analysis, full_pdf_summary
+    return refined_analysis, pdf_result
 
 async def process_pdfs(pdf_links: List[str], user_input: str, sub_question: str, openai: AsyncOpenAI, update_status: Callable):
     logger.info(f"Starting to process {len(pdf_links)} PDFs")
