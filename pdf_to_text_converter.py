@@ -95,5 +95,10 @@ async def convert_to_text(file_url: str, update_status: Callable) -> str:
     end_time = time()
     logger.info(f"Conversion completed for {file_url}. Total time: {end_time - start_time:.2f} seconds")
     logger.info(f"Final text length: {len(text)}")
-    update_status(ResearchStatus.PDF_CONVERSION_COMPLETED, f"Completed conversion for {os.path.basename(file_url)}. Text length: {len(text)}")
+    update_status(ResearchProgress(
+        total_steps=5,
+        current_step=4,
+        status=ResearchStatus.PDF_CONVERSION_COMPLETED,
+        details=f"Completed conversion for {os.path.basename(file_url)}. Text length: {len(text)}"
+    ))
     return text
