@@ -2,6 +2,7 @@ import asyncio
 import logging
 import aiohttp
 from urllib.parse import quote_plus
+from aiohttp import TCPConnector, ClientSession
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +43,9 @@ async def search_for_pdf_files(keywords: list[str], max_results: int = 30, max_a
         attempts += 1
         logger.debug(f"Completed search for keyword '{keyword}'. Total attempts: {attempts}")
 
-    async with aiohttp.ClientSession() as session:
+    # Use a custom connector that doesn't rely on aiodns
+    connector = TCPConnector(ssl=False, use_dns_cache=False)
+    async with ClientSession(connector=connector) as session:
         logger.info("Starting concurrent keyword searches")
         await asyncio.gather(*[search_keyword(session, keyword) for keyword in keywords])
     
