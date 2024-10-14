@@ -188,7 +188,7 @@ async def research(user_input: str, update_status: Callable):
 
     progress.current_step += 1
     progress.status = ResearchStatus.GENERATING_SUB_QUESTIONS
-    progress.details = "Generating research questions"
+    progress.details = "Generating sub questions for research"
     update_status(progress)
     logger.info("Starting sub-question generation")
     sub_questions_response = await generate_sub_questions(user_input, openai)

@@ -11,7 +11,7 @@ GOOGLE_CSE_ID = os.getenv("GOOGLE_CSE_ID")
 
 google_search = build("customsearch", "v1", developerKey=GOOGLE_API_KEY).cse()
 
-async def search_for_pdf_files(keywords: list[str], update_status: Callable, max_results: int = 30, max_attempts: int = 20):
+async def search_for_pdf_files(keywords: list[str], update_status: Callable, max_results: int = 30, max_attempts: int = 10):
     logger.info(f"Starting PDF search with {len(keywords)} keywords, max_results={max_results}, max_attempts={max_attempts}")
     update_status(ResearchProgress(
         total_steps=5,
@@ -31,7 +31,7 @@ async def search_for_pdf_files(keywords: list[str], update_status: Callable, max
                 total_steps=5,
                 current_step=3,
                 status=ResearchStatus.DOCUMENT_SEARCH_KEYWORD,
-                details=f"Searching PDFs for keyword {idx}/{len(keywords)}: {keyword}"
+                details=f"Searching PDFs for keyword {keyword}"
             ))
             results = google_search.list(q=keyword, cx=GOOGLE_CSE_ID).execute()
             logger.info(f"Received {len(results.get('items', []))} items for keyword: '{keyword}'")
@@ -47,7 +47,7 @@ async def search_for_pdf_files(keywords: list[str], update_status: Callable, max
                 total_steps=5,
                 current_step=3,
                 status=ResearchStatus.DOCUMENT_SEARCH_KEYWORD_COMPLETED,
-                details=f"Completed search for keyword {idx}/{len(keywords)}: {keyword}"
+                details=f"Completed search for keyword {keyword}" 
             ))
         except Exception as e:
             logger.error(f"Error occurred while searching for keyword '{keyword}': {e}", exc_info=True)

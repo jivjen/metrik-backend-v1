@@ -1,6 +1,8 @@
 import logging
 from openai import AsyncOpenAI
 from models import RefinedAnalysis, FinalAnalysisRefinement, CompleteAnalysis
+from typing import Callable
+from models import ResearchStatus, ResearchProgress
 
 logger = logging.getLogger(__name__)
 

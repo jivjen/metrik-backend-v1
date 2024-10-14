@@ -1,4 +1,5 @@
 import logging
+import os
 from tenacity import retry, stop_after_attempt, wait_fixed
 import google.generativeai as genai
 from models import RefinedAnalysis, ReformatAnswerResponse, GeminiAnswerResponse
@@ -53,10 +54,17 @@ async def final_synthesis(full_pdf: List[Dict[str, str]], full_normal: List[Refi
     3. Include all relevant data points, statistics, and quotes from the analyses.
     4. Highlight any conflicting information or uncertainties, providing a balanced view.
     5. Use inline citations for each piece of information, formatted as [^1^], [^2^], etc.
-    6. Create a consolidated, numbered References list with all unique sources used.
-    7. Format each reference as a clickable link using Markdown syntax: [Reference text](URL)
-    8. If the main query requires specific formatting or data presentation, prioritize that in your response.
-    9. Ensure your response is well-structured, in-depth, and directly addresses the main query.
+    6. Put all the source links of the references under the references key.
+    7. Please ensure that the answer is well-structured, in-depth, and directly addresses the main query.
+    8. The answer in the answer key should be a nicely formatted valid markdown string which can be rendered by a markdown viewer.
+    9. If the main query requires specific formatting or data presentation, prioritize that in your response.
+    10. Ensure your response is well-structured, in-depth, and directly addresses the main query.
+    
+    Your response should be given according to the defined schema in the following format as a valid json:
+    {{
+    answer: Valid markdown string with the entire answer,
+    references: List of reference urls used in the answer from the input source links
+    }}
 
     Remember: Your task is to synthesize all the provided information into a cohesive, comprehensive answer to the main query.
     Please note to keep your answer as a whole under the answer key and the references listed under the references key
@@ -76,7 +84,7 @@ async def final_synthesis(full_pdf: List[Dict[str, str]], full_normal: List[Refi
         try:
             result = json.loads(response.candidates[0].content.parts[0].text)
             logger.info("Successfully parsed JSON response")
-            logger.info(f"Parsed result (first 500 chars): {str(result)[:500]}...")
+            # logger.info(f"Parsed result (first 500 chars): {str(result)[:500]}...")
             return result
         except json.JSONDecodeError as j:
             logger.error(f"JSON parsing failed. Attempting to reformat the response. Error: {j}")

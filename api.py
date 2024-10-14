@@ -109,7 +109,7 @@ async def get_job_result(job_id: str):
     result = db.results.find_one({"job_id": job_id})
     if result:
         logger.debug(f"Job result: {result}")
-        return {"result": result["result"]}
+        return {"result": result["result"], "references": result["references"]}
     logger.warning(f"Job result not found for job {job_id}")
     return {"status": "Result not found"}
 

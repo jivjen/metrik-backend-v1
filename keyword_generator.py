@@ -3,6 +3,8 @@ from typing import Callable
 from openai.types.chat import ParsedChatCompletion
 from openai import AsyncOpenAI
 from models import KeywordGeneration, ResearchProgress, ResearchStatus
+from typing import Callable
+from models import ResearchStatus, ResearchProgress
 
 logger = logging.getLogger(__name__)
 

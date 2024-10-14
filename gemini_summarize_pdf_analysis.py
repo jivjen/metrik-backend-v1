@@ -8,6 +8,7 @@ import json
 from openai import AsyncOpenAI
 from typing import Callable
 from models import ResearchStatus, ResearchProgress
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +75,7 @@ async def summarize_pdf_analyses(pdf_results: List[Tuple[str, str]], main_query:
         try:
             result = json.loads(response.candidates[0].content.parts[0].text)
             logger.info("Successfully parsed JSON response from Gemini API")
-            logger.info(f"Parsed result: {result}")
+            logger.info(f"Parsed result: {json.dumps(result, ensure_ascii=False)}")
             logger.info(f"Summarize PDF Aanalyses References count: {len(result['references'])}")
             return result
         except json.JSONDecodeError:

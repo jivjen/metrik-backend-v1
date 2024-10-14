@@ -2,6 +2,8 @@ import logging
 from openai.types.chat import ParsedChatCompletion
 from openai import AsyncOpenAI
 from models import FileSearchKeywords
+from typing import Callable
+from models import ResearchStatus, ResearchProgress
 
 logger = logging.getLogger(__name__)
 
@@ -11,7 +13,7 @@ async def file_keyword_generator(user_input: str, client: AsyncOpenAI, update_st
         total_steps=5,
         current_step=2,
         status=ResearchStatus.GENERATING_KEYWORDS,
-        details="Generating file-specific keywords"
+        details="Generating file search keywords"
     ))
     try:
         logger.info(f"Preparing to send request to OpenAI API for file keyword generation")
