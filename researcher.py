@@ -21,11 +21,12 @@ async def process_sub_question(user_input: str, question: SubQuestion, openai: A
     logger.info(f"Processing sub-question: {question.question}")
     update_status(ResearchStatus.PROCESSING_SUB_QUESTIONS, f"Processing sub-question: {question.question[:50]}...")
     
-    # Generate keywords concurrently
-    update_status(ResearchStatus.GENERATING_KEYWORDS, f"Generating keywords for: {question.question[:50]}...")
-    logger.debug(f"Starting keyword generation for user input: '{user_input}' and sub-question: '{question.question}'")
-    keywords_task = asyncio.create_task(keyword_generator(user_input, question.question, openai))
-    file_keywords_task = asyncio.create_task(file_keyword_generator(question.question, openai))
+    # Generate keywords, process keywords, and handle PDFs concurrently
+    update_status(ResearchStatus.GENERATING_KEYWORDS, f"Generating and processing keywords, searching PDFs for: {question.question[:50]}...")
+    logger.debug(f"Starting concurrent operations for user input: '{user_input}' and sub-question: '{question.question}'")
+    
+    keywords_task = keyword_generator(user_input, question.question, openai)
+    file_keywords_task = file_keyword_generator(question.question, openai)
     
     keywords, file_keywords = await asyncio.gather(keywords_task, file_keywords_task)
     
@@ -36,23 +37,24 @@ async def process_sub_question(user_input: str, question: SubQuestion, openai: A
     logger.info(f"Generated file keywords: {extracted_file_keywords}")
     logger.debug(f"Keyword generation completed. Regular keywords: {len(extracted_keywords)}, File keywords: {len(extracted_file_keywords)}")
 
-    # Process keywords and PDF files concurrently
-    update_status(ResearchStatus.PROCESSING_KEYWORDS, f"Processing keyword: {extracted_keywords[0][:30]}...")
-    logger.debug(f"Starting keyword processing for {len(extracted_keywords)} keywords")
+    # Start all tasks concurrently
     keyword_tasks = [process_keyword(keyword, user_input, question.question, openai) for keyword in extracted_keywords]
+    pdf_search_task = search_for_pdf_files(extracted_file_keywords)
     
-    update_status(ResearchStatus.SEARCHING_PDF, f"Searching PDFs with: {extracted_file_keywords[0][:30]}...")
-    logger.debug(f"Starting PDF search with {len(extracted_file_keywords)} file keywords")
-    pdf_search_task = asyncio.create_task(search_for_pdf_files(extracted_file_keywords))
+    # Gather all tasks
+    all_results = await asyncio.gather(
+        *keyword_tasks,
+        pdf_search_task
+    )
     
-    # Start PDF processing as soon as PDF search is done
+    keyword_results = all_results[:-1]  # All but the last result are keyword results
+    pdf_links = all_results[-1]  # The last result is the PDF links
+    
+    # Process PDFs
     update_status(ResearchStatus.PROCESSING_PDF, f"Processing PDFs for: {question.question[:50]}...")
-    logger.debug("Initiating PDF processing task")
-    pdf_processing_task = asyncio.create_task(process_pdfs(pdf_search_task, user_input, question.question, openai, update_status))
+    logger.debug("Starting PDF processing")
+    pdf_result = await process_pdfs(pdf_links, user_input, question.question, openai, update_status)
     
-    # Wait for keyword processing and PDF processing to complete
-    logger.info("Waiting for keyword processing and PDF processing to complete...")
-    keyword_results, pdf_result = await asyncio.gather(asyncio.gather(*keyword_tasks), pdf_processing_task)
     logger.info("Keyword processing and PDF processing completed.")
     logger.debug(f"Received {len(keyword_results)} keyword results and PDF processing result")
     
