@@ -4,6 +4,7 @@ from openai import AsyncOpenAI
 from search_result_analyser import search_result_analyzer
 from pymongo import MongoClient
 import os
+import asyncio
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -46,7 +47,7 @@ async def process_keyword(keyword: str, user_input: str, sub_question: str, open
             api_key, current_key_num = await get_tavily_api_key()
             tavily_client = TavilyClient(api_key=api_key)
             logger.info(f"Sending search request to Tavily for keyword: '{keyword}'")
-            tavily_result = await tavily_client.get_search_context(keyword)
+            tavily_result = await asyncio.to_thread(tavily_client.get_search_context, keyword)
             logger.debug(f"Received Tavily search result (first 100 chars): {tavily_result[:100]}...")
             break
         except Exception as e:
