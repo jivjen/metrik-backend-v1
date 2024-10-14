@@ -13,6 +13,9 @@ from logging_config import setup_logger
 
 app = FastAPI()
 
+# Setup logger
+logger = logging.getLogger(__name__)
+
 # MongoDB connection
 client = MongoClient(os.getenv("MONGODB_URI"))
 db = client.research_jobs
