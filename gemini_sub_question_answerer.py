@@ -5,6 +5,7 @@ from models import RefinedAnalysis, ReformatAnswerResponse, GeminiAnswerResponse
 from typing import Dict
 from gemini_safety_config import safety_config
 import json
+import os
 from openai import AsyncOpenAI
 from typing import Callable
 from models import ResearchStatus, ResearchProgress
