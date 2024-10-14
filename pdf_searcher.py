@@ -1,5 +1,7 @@
 from googleapiclient.discovery import build
 import logging
+from typing import Callable
+from models import ResearchStatus, ResearchProgress
 
 logger = logging.getLogger(__name__)
 
