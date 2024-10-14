@@ -111,19 +111,27 @@ async def process_pdf(pdf_link: str, user_input: str, sub_question: str, openai:
     logger.info(f"Starting processing of PDF: {pdf_name}")
     update_status(ResearchStatus.PROCESSING_PDF, f"Processing PDF: {pdf_name[:30]}...")
     
-    pdf_text = await convert_to_text(pdf_link)
-    logger.info(f"Converted PDF to text. Text length: {len(pdf_text)}")
-    
-    analysed = await analyze_with_gemini(pdf_text, user_input, sub_question, openai)
-    logger.info(f"Completed Gemini analysis for PDF: {pdf_name}. Analysis length: {len(analysed)}")
-    
-    if len(analysed) < 2000:
-        logger.warning(f"Skipping PDF analysis due to short length: {len(analysed)} characters for {pdf_name}")
+    try:
+        pdf_text = await convert_to_text(pdf_link)
+        logger.info(f"Converted PDF to text. Text length: {len(pdf_text)}")
+        
+        if len(pdf_text) < 100:  # Adjust this threshold as needed
+            logger.warning(f"PDF text too short, possibly failed conversion: {len(pdf_text)} characters for {pdf_name}")
+            return None
+        
+        analysed = await analyze_with_gemini(pdf_text, user_input, sub_question, openai)
+        logger.info(f"Completed Gemini analysis for PDF: {pdf_name}. Analysis length: {len(analysed)}")
+        
+        if len(analysed) < 2000:
+            logger.warning(f"Skipping PDF analysis due to short length: {len(analysed)} characters for {pdf_name}")
+            return None
+        
+        logger.info(f"Completed analysis for PDF: {pdf_name}")
+        logger.info(f"PDF Analysis preview: {analysed[:100]}...")
+        return PDFAnalysis(url=pdf_link, analysis=analysed)
+    except Exception as e:
+        logger.error(f"Error processing PDF {pdf_name}: {str(e)}")
         return None
-    
-    logger.info(f"Completed analysis for PDF: {pdf_name}")
-    logger.info(f"PDF Analysis preview: {analysed[:100]}...")
-    return PDFAnalysis(url=pdf_link, analysis=analysed)
 
 async def research(user_input: str, update_status: Callable):
     logger.info(f"Starting research for user input: {user_input}")
