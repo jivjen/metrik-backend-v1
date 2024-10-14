@@ -105,4 +105,6 @@ async def get_job_result(job_id: str):
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 8002))
-    uvicorn.run(app, host="0.0.0.0", port=port, workers=4)
+    workers = 4
+    logger.info(f"Starting server on port {port} with {workers} workers")
+    uvicorn.run(app, host="0.0.0.0", port=port, workers=workers)
