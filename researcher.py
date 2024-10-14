@@ -16,16 +16,17 @@ from models import SubQuestion, CompleteAnalysis, PDFAnalysis, ResearchStatus, R
 from openai import AsyncOpenAI
 from typing import Callable
 from models import ResearchStatus, ResearchProgress
+import os
 
 logger = logging.getLogger(__name__)
 
 async def process_sub_question(user_input: str, question: SubQuestion, openai: AsyncOpenAI, update_status: Callable, question_index: int, total_questions: int):
-    logger.info(f"Processing sub-question {question_index}/{total_questions}: {question.question}")
+    logger.info(f"Processing sub-question {question.question}")
     update_status(ResearchProgress(
         total_steps=5,
         current_step=1,
         status=ResearchStatus.PROCESSING_SUB_QUESTIONS,
-        details=f"Analyzing research question {question_index}/{total_questions}: {question.question[:50]}..."
+        details=f"Analyzing research question: {question.question[:50]}..."
     ))
     
     # Generate keywords
@@ -33,7 +34,7 @@ async def process_sub_question(user_input: str, question: SubQuestion, openai: A
         total_steps=5,
         current_step=2,
         status=ResearchStatus.GENERATING_KEYWORDS,
-        details=f"Generating search terms for question {question_index}/{total_questions}"
+        details=f"Generating search terms for question {question.question[:50]}..."
     ))
     logger.info(f"Starting keyword generation for user input: '{user_input}' and sub-question: '{question.question}'")
     
@@ -52,7 +53,7 @@ async def process_sub_question(user_input: str, question: SubQuestion, openai: A
         total_steps=5,
         current_step=2,
         status=ResearchStatus.KEYWORDS_GENERATED,
-        details=f"Generated {len(extracted_keywords) + len(extracted_file_keywords)} search terms for question {question_index}/{total_questions}"
+        details=f"Generated {len(extracted_keywords) + len(extracted_file_keywords)} search terms for question: {question.question[:50]}..." 
     ))
 
     # Process keywords and search for documents
@@ -60,7 +61,7 @@ async def process_sub_question(user_input: str, question: SubQuestion, openai: A
         total_steps=5,
         current_step=3,
         status=ResearchStatus.SEARCHING_ONLINE,
-        details=f"Searching online resources for question {question_index}/{total_questions}"
+        details=f"Searching online resources for question: {question.question[:100]}..."
     ))
     keyword_tasks = [process_keyword(keyword, user_input, question.question, openai, update_status) for keyword in extracted_keywords]
     pdf_search_task = asyncio.create_task(search_for_pdf_files(extracted_file_keywords, update_status=update_status))
@@ -73,7 +74,7 @@ async def process_sub_question(user_input: str, question: SubQuestion, openai: A
         total_steps=5,
         current_step=3,
         status=ResearchStatus.SEARCH_COMPLETED,
-        details=f"Completed online search for question {question_index}/{total_questions}"
+        details=f"Completed online search for question: {question.question[:100]}..."
     ))
     
     # Process PDFs
@@ -81,7 +82,7 @@ async def process_sub_question(user_input: str, question: SubQuestion, openai: A
         total_steps=5,
         current_step=4,
         status=ResearchStatus.PROCESSING_DOCUMENTS,
-        details=f"Analyzing {len(pdf_links)} documents for question {question_index}/{total_questions}"
+        details=f"Analyzing {len(pdf_links)} documents for question: {question.question[:100]}..."
     ))
     pdf_result = await process_pdfs(pdf_links, user_input, question.question, openai, update_status)
     
@@ -90,7 +91,7 @@ async def process_sub_question(user_input: str, question: SubQuestion, openai: A
         total_steps=5,
         current_step=5,
         status=ResearchStatus.COMBINING_ANALYSES,
-        details=f"Combining analyses for question {question_index}/{total_questions}"
+        details=f"Combining analyses for question: {question.question[:100]}..."
     ))
     complete_analysis = CompleteAnalysis(analysis=[point for result in keyword_results for point in result.points])
     logger.info(f"Created complete analysis with {len(complete_analysis.analysis)} points")
@@ -103,7 +104,7 @@ async def process_sub_question(user_input: str, question: SubQuestion, openai: A
         total_steps=5,
         current_step=5,
         status=ResearchStatus.SYNTHESIZING_RESULTS,
-        details=f"Synthesizing results for question {question_index}/{total_questions}"
+        details=f"Synthesizing results for question: {question.question[:100]}..."
     ))
     answer = await synthesize_combined_analysis(refined_analysis, pdf_result, question.question, openai, update_status)
     logger.info(f"Synthesized answer length: {len(answer['answer'])}")
@@ -115,7 +116,7 @@ async def process_sub_question(user_input: str, question: SubQuestion, openai: A
         total_steps=5,
         current_step=5,
         status=ResearchStatus.SUB_QUESTION_COMPLETED,
-        details=f"Completed research question {question_index}/{total_questions}: {question.question[:50]}..."
+        details=f"Completed research question: {question.question[:50]}..."
     ))
 
     return refined_analysis, pdf_result
@@ -133,7 +134,7 @@ async def process_pdfs(pdf_links: List[str], user_input: str, sub_question: str,
     list_of_processed_files = [pdf for pdf in list_of_processed_files if pdf is not None]
     logger.info(f"Successfully processed {len(list_of_processed_files)} out of {len(pdf_links)} PDFs")
 
-    update_status(ResearchStatus.SUMMARIZING_PDF, f"Summarizing {len(list_of_processed_files)} PDFs...")
+    update_status(ResearchStatus.SUMMARIZING_DOCUMENT, f"Summarizing {len(list_of_processed_files)} PDFs...")
     logger.info(f"Starting PDF summary for {len(list_of_processed_files)} processed files")
     full_pdf_summary = await summarize_pdf_analyses(list_of_processed_files, user_input, sub_question, openai, update_status)
     logger.info(f"PDF summary completed. Summary length: {len(full_pdf_summary['summary']) if isinstance(full_pdf_summary, dict) and 'summary' in full_pdf_summary else 'N/A'}")
