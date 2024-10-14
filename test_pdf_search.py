@@ -1,6 +1,9 @@
 import asyncio
 import logging
 import sys
+import asyncio
+import logging
+import sys
 from pdf_searcher import search_for_pdf_files
 
 # Set up logging
