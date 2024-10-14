@@ -41,14 +41,18 @@ async def process_sub_question(user_input: str, question: SubQuestion, openai: A
     keyword_tasks = [process_keyword(keyword, user_input, question.question, openai) for keyword in extracted_keywords]
     pdf_search_task = search_for_pdf_files(extracted_file_keywords)
     
+    logger.info("Starting to gather all tasks")
     # Gather all tasks
     all_results = await asyncio.gather(
         *keyword_tasks,
         pdf_search_task
     )
+    logger.info("All tasks gathered successfully")
     
     keyword_results = all_results[:-1]  # All but the last result are keyword results
     pdf_links = all_results[-1]  # The last result is the PDF links
+    
+    logger.info(f"Received {len(keyword_results)} keyword results and {len(pdf_links)} PDF links")
     
     # Process PDFs
     update_status(ResearchStatus.PROCESSING_PDF, f"Processing PDFs for: {question.question[:50]}...")
@@ -57,6 +61,7 @@ async def process_sub_question(user_input: str, question: SubQuestion, openai: A
     
     logger.info("Keyword processing and PDF processing completed.")
     logger.info(f"Received {len(keyword_results)} keyword results and PDF processing result")
+    logger.info(f"PDF result type: {type(pdf_result)}")
     
     complete_analysis = CompleteAnalysis(analysis=[point for result in keyword_results for point in result.points])
     logger.info(f"Created complete analysis with {len(complete_analysis.analysis)} points")
