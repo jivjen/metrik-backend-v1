@@ -16,7 +16,7 @@ if platform.system() == 'Windows':
 # Set up DNS resolver for Windows
 if platform.system() == 'Windows':
     import aiodns
-    resolver = aiodns.DNSResolver(loop=asyncio.get_event_loop())
+    resolver = aiodns.DNSResolver()
     connector = aiohttp.TCPConnector(resolver=resolver)
 else:
     connector = None
