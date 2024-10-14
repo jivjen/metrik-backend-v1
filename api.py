@@ -116,11 +116,9 @@ async def get_job_result(job_id: str):
     return {"status": "Result not found"}
 
 def start_server():
-    workers = 4
-    config = uvicorn.Config(app, host="0.0.0.0", port=8002, workers=workers)
+    config = uvicorn.Config(app, host="0.0.0.0", port=8002, workers=4)
     server = uvicorn.Server(config)
     server.run()
-    logger.info(f"Server stopped. It was running with {workers} workers")
 
 if __name__ == "__main__":
     import uvicorn
