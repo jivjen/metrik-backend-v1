@@ -21,7 +21,12 @@ async def convert_to_text(file_url: str, update_status: Callable) -> str:
 
     async def primary_conversion():
         logger.info(f"Attempting primary conversion for {file_url}")
-        update_status(ResearchStatus.PRIMARY_CONVERSION, f"Attempting PDF conversion for {os.path.basename(file_url)}")
+        update_status(ResearchProgress(
+            total_steps=5,
+            current_step=4,
+            status=ResearchStatus.PRIMARY_CONVERSION,
+            details=f"Attempting PDF conversion for {os.path.basename(file_url)}"
+        ))
         try:
             url = f'https://r.jina.ai/{file_url}'
             headers = {
@@ -32,7 +37,12 @@ async def convert_to_text(file_url: str, update_status: Callable) -> str:
             if response.status_code == 200:
                 text = response.text
                 logger.info(f"Successfully converted {file_url} to text using primary method")
-                update_status(ResearchStatus.PRIMARY_CONVERSION_COMPLETED, f"Successfully converted {os.path.basename(file_url)} using primary method")
+                update_status(ResearchProgress(
+                    total_steps=5,
+                    current_step=4,
+                    status=ResearchStatus.PRIMARY_CONVERSION_COMPLETED,
+                    details=f"Successfully converted {os.path.basename(file_url)} using primary method"
+                ))
                 logger.info(f"Primary conversion result (first 100 chars): {text[:100]}")
                 return text
             else:
@@ -44,16 +54,31 @@ async def convert_to_text(file_url: str, update_status: Callable) -> str:
 
     async def secondary_conversion():
         logger.info(f"Attempting secondary conversion for {file_url}")
-        update_status(ResearchStatus.SECONDARY_CONVERSION, f"Attempting PDF conversion for {os.path.basename(file_url)}")
+        update_status(ResearchProgress(
+            total_steps=5,
+            current_step=4,
+            status=ResearchStatus.SECONDARY_CONVERSION,
+            details=f"Attempting PDF conversion for {os.path.basename(file_url)}"
+        ))
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
         try:
             logger.info(f"Downloading file from {file_url}")
-            update_status(ResearchStatus.DOCUMENT_DOWNLOAD, f"Downloading {os.path.basename(file_url)}")
+            update_status(ResearchProgress(
+                total_steps=5,
+                current_step=4,
+                status=ResearchStatus.DOCUMENT_DOWNLOAD,
+                details=f"Downloading {os.path.basename(file_url)}"
+            ))
             response = await asyncio.to_thread(requests.get, file_url, headers=headers)
             if response.status_code != 200:
-                update_status(ResearchStatus.DOCUMENT_DOWNLOAD_FAILED, f"Failed to download {os.path.basename(file_url)}")
+                update_status(ResearchProgress(
+                    total_steps=5,
+                    current_step=4,
+                    status=ResearchStatus.DOCUMENT_DOWNLOAD_FAILED,
+                    details=f"Failed to download {os.path.basename(file_url)}"
+                ))
                 return ""
             
             file_name = os.path.basename(file_url)
@@ -63,21 +88,36 @@ async def convert_to_text(file_url: str, update_status: Callable) -> str:
 
             try:
                 logger.info(f"Converting {file_name} to text using secondary method")
-                update_status(ResearchStatus.DOCUMENT_TEXT_EXTRACTION, f"Extracting text from {file_name}")
+                update_status(ResearchProgress(
+                    total_steps=5,
+                    current_step=4,
+                    status=ResearchStatus.DOCUMENT_TEXT_EXTRACTION,
+                    details=f"Extracting text from {file_name}"
+                ))
                 doc = fitz.open(file_name)
                 text = ""
                 for page_num, page in enumerate(doc, 1):
                     page_text = page.get_text()
                     text += page_text
                     logger.info(f"Extracted text from page {page_num} (first 50 chars): {page_text[:50]}")
-                    update_status(ResearchStatus.DOCUMENT_PAGE_EXTRACTED, f"Extracted text from page {page_num}/{doc.page_count} of {file_name}")
+                    update_status(ResearchProgress(
+                        total_steps=5,
+                        current_step=4,
+                        status=ResearchStatus.DOCUMENT_PAGE_EXTRACTED,
+                        details=f"Extracted text from page {page_num}/{doc.page_count} of {file_name}"
+                    ))
                 doc.close()
             finally:
                 logger.info(f"Removing temporary file: {file_name}")
                 os.remove(file_name)
 
             logger.info(f"Successfully converted {file_url} to text using secondary method")
-            update_status(ResearchStatus.SECONDARY_CONVERSION_COMPLETED, f"Successfully converted {file_name}")
+            update_status(ResearchProgress(
+                total_steps=5,
+                current_step=4,
+                status=ResearchStatus.SECONDARY_CONVERSION_COMPLETED,
+                details=f"Successfully converted {file_name}"
+            ))
             logger.info(f"Secondary conversion result (first 100 chars): {text[:100]}")
             return text
         except Exception as e:
