@@ -14,7 +14,7 @@ if platform.system() == 'Windows':
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
 # Set up a custom connector for all systems
-connector = aiohttp.TCPConnector(family=0, ssl=False)  # family=0 means auto-detect, ssl=False to avoid SSL issues
+connector = aiohttp.TCPConnector(family=0, ssl=False, use_dns_cache=False)  # family=0 means auto-detect, ssl=False to avoid SSL issues, use_dns_cache=False to avoid aiodns
 
 async def convert_to_text(file_url: str) -> str:
     logger.info(f"Starting conversion for file: {file_url}")
