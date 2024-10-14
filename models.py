@@ -126,6 +126,7 @@ class ResearchStatus(str, Enum):
     DOCUMENT_PAGE_EXTRACTED = "Extracted text from document page"
     CONVERSION_FALLBACK = "Falling back to alternative conversion method"
     DOCUMENT_CONVERSION_COMPLETED = "Completed document conversion"
+    PDF_CONVERSION_COMPLETED = "Completed PDF conversion"
     SUMMARIZING_DOCUMENT = "Summarizing document analyses"
 
 class ResearchProgress(BaseModel):
