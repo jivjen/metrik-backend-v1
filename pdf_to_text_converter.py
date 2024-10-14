@@ -6,6 +6,7 @@ import logging
 from time import time
 import asyncio
 import platform
+import socket
 
 logger = logging.getLogger(__name__)
 
@@ -15,9 +16,7 @@ if platform.system() == 'Windows':
 
 # Set up DNS resolver for Windows
 if platform.system() == 'Windows':
-    import aiodns
-    resolver = aiodns.DNSResolver()
-    connector = aiohttp.TCPConnector(resolver=resolver)
+    connector = aiohttp.TCPConnector(family=socket.AF_INET)
 else:
     connector = None
 
