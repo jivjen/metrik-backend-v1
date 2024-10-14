@@ -52,11 +52,11 @@ async def convert_to_text(file_url: str, update_status: Callable) -> str:
         }
         try:
             logger.info(f"Downloading file from {file_url}")
-            update_status(ResearchStatus.PDF_DOWNLOAD, f"Downloading {os.path.basename(file_url)}")
+            update_status(ResearchStatus.DOCUMENT_DOWNLOAD, f"Downloading {os.path.basename(file_url)}")
             response = await asyncio.to_thread(requests.get, file_url, headers=headers)
             if response.status_code != 200:
                 logger.error(f"Error downloading file from {file_url}. Status code: {response.status_code}")
-                update_status(ResearchStatus.PDF_DOWNLOAD_FAILED, f"Failed to download {os.path.basename(file_url)}")
+                update_status(ResearchStatus.DOCUMENT_DOWNLOAD_FAILED, f"Failed to download {os.path.basename(file_url)}")
                 return ""
             
             file_name = os.path.basename(file_url)
@@ -65,37 +65,37 @@ async def convert_to_text(file_url: str, update_status: Callable) -> str:
                 f.write(response.content)
 
             try:
-                logger.info(f"Converting {file_name} to text using PyMuPDF")
-                update_status(ResearchStatus.PDF_TEXT_EXTRACTION, f"Extracting text from {file_name}")
+                logger.info(f"Converting {file_name} to text using secondary method")
+                update_status(ResearchStatus.DOCUMENT_TEXT_EXTRACTION, f"Extracting text from {file_name}")
                 doc = fitz.open(file_name)
                 text = ""
                 for page_num, page in enumerate(doc, 1):
                     page_text = page.get_text()
                     text += page_text
                     logger.info(f"Extracted text from page {page_num} (first 50 chars): {page_text[:50]}")
-                    update_status(ResearchStatus.PDF_PAGE_EXTRACTED, f"Extracted text from page {page_num}/{doc.page_count} of {file_name}")
+                    update_status(ResearchStatus.DOCUMENT_PAGE_EXTRACTED, f"Extracted text from page {page_num}/{doc.page_count} of {file_name}")
                 doc.close()
             finally:
                 logger.info(f"Removing temporary file: {file_name}")
                 os.remove(file_name)
 
-            logger.info(f"Successfully converted {file_url} to text using PyMuPDF")
-            update_status(ResearchStatus.PYMUPDF_CONVERSION_COMPLETED, f"Successfully converted {file_name} using PyMuPDF")
-            logger.info(f"PyMuPDF conversion result (first 100 chars): {text[:100]}")
+            logger.info(f"Successfully converted {file_url} to text using secondary method")
+            update_status(ResearchStatus.SECONDARY_CONVERSION_COMPLETED, f"Successfully converted {file_name} using secondary method")
+            logger.info(f"Secondary conversion result (first 100 chars): {text[:100]}")
             return text
         except Exception as e:
-            logger.exception(f"Exception during PyMuPDF conversion for {file_url}: {str(e)}")
-            update_status(ResearchStatus.PYMUPDF_CONVERSION_ERROR, f"Error during PyMuPDF conversion for {os.path.basename(file_url)}")
+            logger.exception(f"Exception during secondary conversion for {file_url}: {str(e)}")
+            update_status(ResearchStatus.SECONDARY_CONVERSION_ERROR, f"Error during secondary conversion for {os.path.basename(file_url)}")
             return ""
 
-    # Try Jina AI first, then fall back to PyMuPDF
-    text = await jina_ai_conversion()
-    logger.info(f"Jina AI conversion result length: {len(text) if text else 0}")
+    # Try primary conversion first, then fall back to secondary
+    text = await primary_conversion()
+    logger.info(f"Primary conversion result length: {len(text) if text else 0}")
     if not text or len(text) < 3000:
-        logger.warning(f"Jina AI conversion failed or returned insufficient text for {file_url}. Falling back to PyMuPDF.")
-        update_status(ResearchStatus.CONVERSION_FALLBACK, f"Falling back to PyMuPDF for {os.path.basename(file_url)}")
-        logger.info(f"Jina AI conversion result: {text}")
-        text = await mupdf_conversion()
+        logger.warning(f"Primary conversion failed or returned insufficient text for {file_url}. Falling back to secondary method.")
+        update_status(ResearchStatus.CONVERSION_FALLBACK, f"Falling back to secondary method for {os.path.basename(file_url)}")
+        logger.info(f"Primary conversion result: {text}")
+        text = await secondary_conversion()
 
     end_time = time()
     logger.info(f"Conversion completed for {file_url}. Total time: {end_time - start_time:.2f} seconds")
