@@ -1,7 +1,8 @@
 import logging
+from typing import Callable
 from openai.types.chat import ParsedChatCompletion
 from openai import AsyncOpenAI
-from models import KeywordGeneration
+from models import KeywordGeneration, ResearchProgress, ResearchStatus
 
 logger = logging.getLogger(__name__)
 
