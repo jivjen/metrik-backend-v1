@@ -95,7 +95,7 @@ async def synthesize_combined_analysis(normal_search_analysis: RefinedAnalysis, 
         try:
             result = json.loads(response.candidates[0].content.parts[0].text)
             logger.info("Successfully parsed JSON response from Gemini API")
-            logger.info(f"Parsed result: {result}")
+            logger.info(f"Parsed result: {json.dumps(result, default=str)[:1000]}")  # Log first 1000 characters
             return result
         except json.JSONDecodeError:
             logger.error("JSON parsing failed. Attempting to reformat the response.")
