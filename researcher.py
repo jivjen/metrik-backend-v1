@@ -14,6 +14,8 @@ from gemini_final_answerer import final_synthesis
 from gemini_sub_question_answerer import synthesize_combined_analysis
 from models import SubQuestion, CompleteAnalysis, PDFAnalysis, ResearchStatus, ResearchProgress
 from openai import AsyncOpenAI
+from typing import Callable
+from models import ResearchStatus, ResearchProgress
 
 logger = logging.getLogger(__name__)
 

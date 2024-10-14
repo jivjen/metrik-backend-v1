@@ -3,7 +3,7 @@ import os
 import uuid
 from fastapi import FastAPI, BackgroundTasks
 from pydantic import BaseModel
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Callable
 from researcher import research
 import logging
 from pymongo import MongoClient
@@ -104,4 +104,4 @@ async def get_job_result(job_id: str):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000, workers=4)
+    uvicorn.run(app, host="0.0.0.0", port=8002, workers=4)

@@ -6,6 +6,8 @@ from models import GeminiPDFSummariseResponse, ReformatSummaryResponse
 from gemini_safety_config import safety_config
 import json
 from openai import AsyncOpenAI
+from typing import Callable
+from models import ResearchStatus, ResearchProgress
 
 logger = logging.getLogger(__name__)
 

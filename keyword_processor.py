@@ -6,6 +6,8 @@ from pymongo import MongoClient
 import os
 import asyncio
 from dotenv import load_dotenv
+from typing import Callable
+from models import ResearchStatus, ResearchProgress
 
 # Load environment variables from .env file
 load_dotenv()

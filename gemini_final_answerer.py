@@ -6,6 +6,8 @@ from typing import List, Dict
 from gemini_safety_config import safety_config
 import json
 from openai import AsyncOpenAI
+from typing import Callable
+from models import ResearchStatus, ResearchProgress
 
 logger = logging.getLogger(__name__)
 
@@ -23,14 +25,14 @@ async def final_synthesis(full_pdf: List[Dict[str, str]], full_normal: List[Refi
         f"PDF Analysis {i+1}:\n{pdf['summary']}\nReferences:\n{', '.join(pdf['references'])}"
         for i, pdf in enumerate(full_pdf)
     ])
-    logger.debug(f"Formatted PDF analyses (first 500 chars): {pdf_analyses[:500]}...")
+    logger.info(f"Formatted PDF analyses (first 500 chars): {pdf_analyses[:500]}...")
 
     # Format normal analyses
     normal_analyses = "\n\n".join([
         f"Normal Analysis {i+1}:\n{normal.refined_analysis}\nReferences:\n{', '.join(normal.references)}"
         for i, normal in enumerate(full_normal)
     ])
-    logger.debug(f"Formatted normal analyses (first 500 chars): {normal_analyses[:500]}...")
+    logger.info(f"Formatted normal analyses (first 500 chars): {normal_analyses[:500]}...")
 
     prompt = f"""
     Synthesize all the following analyses to provide a comprehensive answer to the main query:
@@ -70,11 +72,11 @@ async def final_synthesis(full_pdf: List[Dict[str, str]], full_normal: List[Refi
             ),
             safety_settings=safety_config
         )
-        logger.debug(f"RAW QUESTION RESPONSE = {response}")
+        logger.info(f"RAW QUESTION RESPONSE = {response}")
         try:
             result = json.loads(response.candidates[0].content.parts[0].text)
             logger.info("Successfully parsed JSON response")
-            logger.debug(f"Parsed result (first 500 chars): {str(result)[:500]}...")
+            logger.info(f"Parsed result (first 500 chars): {str(result)[:500]}...")
             return result
         except json.JSONDecodeError as j:
             logger.error(f"JSON parsing failed. Attempting to reformat the response. Error: {j}")
@@ -88,13 +90,13 @@ async def reformat_with_openai_summary_fully_final(raw_response: str, client: As
     try:
         prompt = f"""
         The following text is a response from an AI model that should be in JSON format with 'answer' and 'references' keys, but it may be malformed with extra newline characters or something which is resulting in a JSON parsing error.
-        Please reformat this text properly without modifying any of the existing information and give the output according to the defined schema with the entire summary content under the summary key and the references under the references key.
+        Please reformat this text properly without modifying any of the existing information and give the output according to the defined schema with the entire answer content under the answer key and the references under the references key.
 
         Raw text:
         {raw_response}
         """
 
-        logger.debug(f"Sending prompt to OpenAI (first 500 chars): {prompt[:500]}...")
+        logger.info(f"Sending prompt to OpenAI (first 500 chars): {prompt[:500]}...")
         response = await client.beta.chat.completions.parse(
             model="gpt-4o-mini",
             messages=[
@@ -106,7 +108,7 @@ async def reformat_with_openai_summary_fully_final(raw_response: str, client: As
 
         result = {"answer": response.choices[0].message.parsed.answer, "references": response.choices[0].message.parsed.references}
         logger.info("Successfully reformatted response with OpenAI")
-        logger.debug(f"Reformatted result (first 500 chars): {str(result)[:500]}...")
+        logger.info(f"Reformatted result (first 500 chars): {str(result)[:500]}...")
         return result
     except Exception as e:
         logger.error(f"Failed to reformat response: {str(e)}. Returning empty string.")
