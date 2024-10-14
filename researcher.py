@@ -173,7 +173,7 @@ async def process_pdf(pdf_link: str, user_input: str, sub_question: str, openai:
 
 async def research(user_input: str, update_status: Callable):
     logger.info(f"Starting research for user input: {user_input}")
-    openai = AsyncOpenAI(api_key="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")
+    openai = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     logger.info("OpenAI client initialized")
 
     total_steps = 5  # Adjust this based on the main steps in your research process

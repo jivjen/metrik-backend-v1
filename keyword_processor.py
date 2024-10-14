@@ -15,7 +15,7 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 # MongoDB connection
-client = MongoClient("mongodb+srv://hireloom_admin:QuickVogue%40123@quickvogue.x163n.mongodb.net/?retryWrites=true&w=majority&appName=quickvogue")
+client = MongoClient(os.getenv("MONGODB_URI"))
 db = client.research_jobs
 logger.info("MongoDB connection established")
 

@@ -28,7 +28,7 @@ async def summarize_pdf_analyses(pdf_results: List[Tuple[str, str]], main_query:
     combined_analysis = "\n\n".join([f"Analysis of {url} ({url}):\n{analysis}" for url, analysis in pdf_results])
     logger.info(f"Combined analysis length: {len(combined_analysis)} characters")
 
-    gemini_api_key = "AIzaSyAViB80an5gX6nJFZY2zQnna57a80OLKwk"
+    gemini_api_key = os.getenv("GEMINI_API_KEY")
     if not gemini_api_key:
         logger.error("GEMINI_API_KEY not found in .env file")
         raise ValueError("GEMINI_API_KEY not found in .env file")

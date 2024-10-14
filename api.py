@@ -14,7 +14,7 @@ from logging_config import setup_logger
 app = FastAPI()
 
 # MongoDB connection
-client = MongoClient("mongodb+srv://hireloom_admin:QuickVogue%40123@quickvogue.x163n.mongodb.net/?retryWrites=true&w=majority&appName=quickvogue")
+client = MongoClient(os.getenv("MONGODB_URI"))
 db = client.research_jobs
 
 class ResearchRequest(BaseModel):

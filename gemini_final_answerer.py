@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 async def final_synthesis(full_pdf: List[Dict[str, str]], full_normal: List[RefinedAnalysis], main_query: str, format_notes: str, openai: AsyncOpenAI) -> Dict[str, str]:
     logger.info(f"Starting final synthesis for main query: {main_query}")
-    gemini_api_key = "AIzaSyAViB80an5gX6nJFZY2zQnna57a80OLKwk"
+    gemini_api_key = os.getenv("GEMINI_API_KEY")
     if not gemini_api_key:
         logger.error("GEMINI_API_KEY not found")
         raise ValueError("GEMINI_API_KEY not found")

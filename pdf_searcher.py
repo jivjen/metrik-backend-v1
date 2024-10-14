@@ -5,8 +5,8 @@ from models import ResearchStatus, ResearchProgress
 
 logger = logging.getLogger(__name__)
 
-GOOGLE_API_KEY = "AIzaSyBiTmP3mKXTUb13BtpDivIDZ5X5KccFaqU"
-GOOGLE_CSE_ID = "82236a47a9b6e47e6"
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+GOOGLE_CSE_ID = os.getenv("GOOGLE_CSE_ID")
 
 google_search = build("customsearch", "v1", developerKey=GOOGLE_API_KEY).cse()
 
