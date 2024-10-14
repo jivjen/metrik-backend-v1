@@ -102,9 +102,15 @@ async def get_job_result(job_id: str):
     logger.warning(f"Job result not found for job {job_id}")
     return {"status": "Result not found"}
 
-if __name__ == "__main__":
-    import uvicorn
+def start_server():
     port = int(os.getenv("PORT", 8002))
     workers = 4
     logger.info(f"Starting server on port {port} with {workers} workers")
-    uvicorn.run(app, host="0.0.0.0", port=port, workers=workers)
+    config = uvicorn.Config(app, host="0.0.0.0", port=port, workers=workers)
+    server = uvicorn.Server(config)
+    server.run()
+    logger.info(f"Server stopped. It was running with {workers} workers")
+
+if __name__ == "__main__":
+    import uvicorn
+    start_server()
