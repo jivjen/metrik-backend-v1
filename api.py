@@ -37,13 +37,11 @@ class JobStatus(BaseModel):
     progress: ResearchProgress
     sub_statuses: List[Dict[str, str]] = []
 
-def update_job_status(job_id: str, progress: ResearchProgress, sub_status: Dict[str, str] = None):
+def update_job_status(job_id: str, progress: ResearchProgress):
     update_data = {
         "progress": progress.dict(),
         "updated_at": datetime.utcnow()
     }
-    if sub_status:
-        update_data["$push"] = {"sub_statuses": sub_status}
     
     db.job_statuses.update_one(
         {"job_id": job_id},
@@ -60,7 +58,7 @@ async def run_research(job_id: str, user_input: str):
     try:
         logger.info(f"Starting research for job {job_id}")
         logger.debug(f"User input: {user_input}")
-        result = await research(user_input, lambda progress, sub_status=None: update_job_status(job_id, progress, sub_status))
+        result = await research(user_input, lambda progress: update_job_status(job_id, progress))
         logger.info(f"Research completed for job {job_id}")
         logger.debug(f"Research result: {result}")
         
