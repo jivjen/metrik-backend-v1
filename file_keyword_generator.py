@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 async def file_keyword_generator(user_input: str, client: AsyncOpenAI) -> ParsedChatCompletion[FileSearchKeywords]:
     logger.info(f"Starting file keyword generation for input: {user_input}")
     try:
-        logger.debug(f"Preparing to send request to OpenAI API for file keyword generation")
+        logger.info(f"Preparing to send request to OpenAI API for file keyword generation")
         response = await client.beta.chat.completions.parse(
             model="gpt-4o-mini",
             messages=[
@@ -35,17 +35,17 @@ async def file_keyword_generator(user_input: str, client: AsyncOpenAI) -> Parsed
             response_format=FileSearchKeywords
         )
         logger.info(f"Successfully received response from OpenAI API")
-        logger.debug(f"Raw API response: {response}")
+        logger.info(f"Raw API response: {response}")
         
         generated_keywords = response.choices[0].message.parsed.keywords
         logger.info(f"Generated {len(generated_keywords)} file search keywords")
         for idx, keyword in enumerate(generated_keywords, 1):
-            logger.debug(f"Generated keyword {idx}: {keyword}")
+            logger.info(f"Generated keyword {idx}: {keyword}")
         
         return response
     except Exception as e:
         logger.error(f"Error generating file keywords: {str(e)}", exc_info=True)
-        logger.debug(f"Error details: {type(e).__name__}, {str(e)}")
+        logger.info(f"Error details: {type(e).__name__}, {str(e)}")
         return None
     finally:
         logger.info("Completed file keyword generation process")

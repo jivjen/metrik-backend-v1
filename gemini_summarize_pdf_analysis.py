@@ -14,11 +14,11 @@ async def summarize_pdf_analyses(pdf_results: List[Tuple[str, str]], main_query:
     logger.info(f"Number of PDF results to summarize: {len(pdf_results)}")
 
     for i, (url, analysis) in enumerate(pdf_results, 1):
-        logger.debug(f"PDF {i} - URL: {url}")
-        logger.debug(f"PDF {i} - Analysis preview: {analysis[:100]}...")
+        logger.info(f"PDF {i} - URL: {url}")
+        logger.info(f"PDF {i} - Analysis preview: {analysis[:100]}...")
 
     combined_analysis = "\n\n".join([f"Analysis of {url} ({url}):\n{analysis}" for url, analysis in pdf_results])
-    logger.debug(f"Combined analysis length: {len(combined_analysis)} characters")
+    logger.info(f"Combined analysis length: {len(combined_analysis)} characters")
 
     gemini_api_key = "AIzaSyAViB80an5gX6nJFZY2zQnna57a80OLKwk"
     if not gemini_api_key:
@@ -40,7 +40,7 @@ async def summarize_pdf_analyses(pdf_results: List[Tuple[str, str]], main_query:
     3. Include specific data points, statistics, or quotes that are particularly relevant to either query.
     4. Highlight any conflicting information or uncertainties in the data.
     5. If either query asks for specific data points, output them exactly as expected.
-    6. Each piece of information is provided with the url of the file and then the analysis. So include the respective url as the reference if you are picking up data from that piece of information
+    6. Each piece of information is provided with the url of the file and then the analysis. So include the respective url under the references key if you are picking up data from that piece of information
     7. Ensure the summary addresses the sub-question mainly and just has any of the important details regarding the main query.
 
     Combined Analyses:
@@ -50,7 +50,7 @@ async def summarize_pdf_analyses(pdf_results: List[Tuple[str, str]], main_query:
     """
 
     logger.info("Sending request to Gemini API for content generation")
-    logger.debug(f"Prompt length: {len(prompt)} characters")
+    logger.info(f"Prompt length: {len(prompt)} characters")
 
     try:
         response = await model.generate_content_async(
@@ -61,12 +61,13 @@ async def summarize_pdf_analyses(pdf_results: List[Tuple[str, str]], main_query:
             ),
             safety_settings=safety_config
         )
-        logger.debug(f"Raw Gemini API response: {response}")
+        logger.info(f"Raw Gemini API response: {response}")
 
         try:
             result = json.loads(response.candidates[0].content.parts[0].text)
             logger.info("Successfully parsed JSON response from Gemini API")
-            logger.debug(f"Parsed result: {result}")
+            logger.info(f"Parsed result: {result}")
+            logger.info(f"Summarize PDF Aanalyses References count: {len(result['references'])}")
             return result
         except json.JSONDecodeError:
             logger.error("JSON parsing failed. Attempting to reformat the response.")
@@ -86,7 +87,7 @@ async def reformat_with_openai_summary_1(raw_response: str, client: AsyncOpenAI)
         {raw_response}
         """
 
-        logger.debug(f"Sending prompt to OpenAI (first 500 chars): {prompt[:500]}...")
+        logger.info(f"Sending prompt to OpenAI (first 500 chars): {prompt[:500]}...")
         response = await client.beta.chat.completions.parse(
             model="gpt-4o-mini",
             messages=[
@@ -98,7 +99,7 @@ async def reformat_with_openai_summary_1(raw_response: str, client: AsyncOpenAI)
 
         result = {"summary": response.choices[0].message.parsed.summary, "references": response.choices[0].message.parsed.references}
         logger.info("Successfully reformatted response with OpenAI")
-        logger.debug(f"Reformatted result - Summary length: {len(result['summary'])}, References count: {len(result['references'])}")
+        logger.info(f"Reformatted result - Summary length: {len(result['summary'])}, References count: {len(result['references'])}")
         return result
     except Exception as e:
         logger.error(f"Failed to reformat response: {str(e)}. Returning empty result.")

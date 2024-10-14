@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 async def keyword_generator(user_input: str, sub_question: str, client: AsyncOpenAI) -> ParsedChatCompletion[KeywordGeneration]:
     try:
         logger.info(f"Starting keyword generation for main query: '{user_input}' and sub-question: '{sub_question}'")
-        logger.debug(f"Preparing OpenAI API request for keyword generation")
+        logger.info(f"Preparing OpenAI API request for keyword generation")
         system_content = """
         You are a professional Google search researcher.
         Given a main user query for context and a specific sub-question, your primary task is to generate 5 unique Google search keywords that will help gather detailed information primarily related to the sub-question.
@@ -25,8 +25,8 @@ async def keyword_generator(user_input: str, sub_question: str, client: AsyncOpe
         """
         user_content = f"Main query (for context): {user_input}\nSub-question (primary focus): {sub_question}\nPlease generate keywords primarily addressing the sub-question, while considering the main query as context."
         
-        logger.debug(f"System content for OpenAI API: {system_content}")
-        logger.debug(f"User content for OpenAI API: {user_content}")
+        logger.info(f"System content for OpenAI API: {system_content}")
+        logger.info(f"User content for OpenAI API: {user_content}")
         
         response = await client.beta.chat.completions.parse(
             model="gpt-4o-mini",
@@ -38,17 +38,17 @@ async def keyword_generator(user_input: str, sub_question: str, client: AsyncOpe
         )
         
         logger.info(f"Successfully received response from OpenAI API")
-        logger.debug(f"Raw API response: {response}")
+        logger.info(f"Raw API response: {response}")
         
         generated_keywords = response.choices[0].message.parsed.keywords
         logger.info(f"Generated {len(generated_keywords)} keywords")
         for idx, keyword in enumerate(generated_keywords, 1):
-            logger.debug(f"Generated keyword {idx}: {keyword}")
+            logger.info(f"Generated keyword {idx}: {keyword}")
         
         return response
     except Exception as e:
         logger.error(f"Error generating keywords: {str(e)}", exc_info=True)
-        logger.debug(f"Error details: {type(e).__name__}, {str(e)}")
+        logger.info(f"Error details: {type(e).__name__}, {str(e)}")
         return None
     finally:
         logger.info("Completed keyword generation process")

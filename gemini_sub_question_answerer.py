@@ -20,21 +20,29 @@ async def synthesize_combined_analysis(normal_search_analysis: RefinedAnalysis, 
     genai.configure(api_key=gemini_api_key)
     model = genai.GenerativeModel('gemini-1.5-pro-latest')
 
+    logger.info(f"Normal Analysis References = {normal_search_analysis.references}")
+
     normal_analysis = f"""Analysis:
       {normal_search_analysis.refined_analysis}
 
       References:
       {', '.join(normal_search_analysis.references)}"""
 
-    # Format PDF search analysis
-    pdf_analysis = f"""Analysis:
-      {pdf_search_analysis['summary']}
+    if pdf_search_analysis.get("summary"):
+        logger.info(f"PDF analysis found: {pdf_search_analysis['summary']}")
+        # Format PDF search analysis
+        pdf_analysis = f"""Analysis:
+        {pdf_search_analysis['summary']}
 
-      References:
-      {', '.join(pdf_search_analysis['references'])}"""
+        References:
+        {', '.join(pdf_search_analysis['references'])}"""
 
-    logger.debug(f"Normal analysis length: {len(normal_analysis)}")
-    logger.debug(f"PDF analysis length: {len(pdf_analysis)}")
+        logger.info(f"PDF Analysis References = {pdf_search_analysis['references']}")
+    else:
+        logger.warning("PDF analysis not found")
+
+    logger.info(f"Normal analysis length: {len(normal_analysis)}")
+    logger.info(f"PDF analysis length: {len(pdf_analysis)}")
 
     prompt = f"""
     Synthesize the following analyses to provide a comprehensive answer to the question:
@@ -54,14 +62,14 @@ async def synthesize_combined_analysis(normal_search_analysis: RefinedAnalysis, 
     5. Highlight any conflicting information or uncertainties, providing a balanced view.
     6. Make sure to shape the final answer according to the format notes provided if any. If not, use the most relevant format.
     7. Use inline citations for each piece of information, formatted as [^1^], [^2^], etc.
-    8. Create a consolidated, numbered References list with all unique sources used.
+    8. Make sure to include the reference from the corresponding input that's given and put it under the references key.
     9. If the sub-question requires specific formatting or data presentation, prioritize that in your response.
 
     Remember: Your response should be a well-structured, in-depth analysis that directly addresses the sub-question while maintaining relevance to the main query context.
     Please note to keep your answer as a whole under the answer key and the references listed under the references key
     """
 
-    logger.debug(f"Prompt length: {len(prompt)}")
+    logger.info(f"Prompt length: {len(prompt)}")
 
     try:
         logger.info("Sending request to Gemini API")
@@ -73,12 +81,12 @@ async def synthesize_combined_analysis(normal_search_analysis: RefinedAnalysis, 
             ),
             safety_settings=safety_config
         )
-        logger.debug(f"Raw Gemini API response: {response}")
+        logger.info(f"Raw Gemini API response: {response}")
         
         try:
             result = json.loads(response.candidates[0].content.parts[0].text)
             logger.info("Successfully parsed JSON response from Gemini API")
-            logger.debug(f"Parsed result: {result}")
+            logger.info(f"Parsed result: {result}")
             return result
         except json.JSONDecodeError:
             logger.error("JSON parsing failed. Attempting to reformat the response.")
@@ -92,13 +100,13 @@ async def reformat_with_openai_answer_final(raw_response: str, client: AsyncOpen
     try:
         prompt = f"""
         The following text is a response from an AI model that should be in JSON format with 'answer' and 'references' keys, but it may be malformed with extra newline characters or something which is resulting in a JSON parsing error.
-        Please reformat this text properly without modifying any of the existing information and give the output according to the defined schema with the entire summary content under the summary key and the references under the references key.
+        Please reformat this text properly without modifying any of the existing information and give the output according to the defined schema with the entire answer content under the answer key and the references under the references key.
 
         Raw text:
         {raw_response}
         """
 
-        logger.debug(f"Sending prompt to OpenAI (first 500 chars): {prompt[:500]}...")
+        logger.info(f"Sending prompt to OpenAI (first 500 chars): {prompt[:500]}...")
         response = await client.beta.chat.completions.parse(
             model="gpt-4o-mini",
             messages=[
@@ -110,7 +118,7 @@ async def reformat_with_openai_answer_final(raw_response: str, client: AsyncOpen
 
         result = {"answer": response.choices[0].message.parsed.answer, "references": response.choices[0].message.parsed.references}
         logger.info("Successfully reformatted response with OpenAI")
-        logger.debug(f"Reformatted result (first 500 chars): {str(result)[:500]}...")
+        logger.info(f"Reformatted result (first 500 chars): {str(result)[:500]}...")
         return result
     except Exception as e:
         logger.error(f"Failed to reformat response: {str(e)}. Returning empty result.")

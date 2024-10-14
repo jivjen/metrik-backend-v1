@@ -10,8 +10,8 @@ logger = logging.getLogger(__name__)
 
 async def analyze_with_gemini(text: str, user_input: str, sub_question: str, openai: AsyncOpenAI) -> str:
     logger.info(f"Starting analysis with Gemini for sub-question: {sub_question}")
-    logger.debug(f"User input: {user_input}")
-    logger.debug(f"Text length: {len(text)} characters")
+    logger.info(f"User input: {user_input}")
+    logger.info(f"Text length: {len(text)} characters")
 
     gemini_api_key = "AIzaSyAViB80an5gX6nJFZY2zQnna57a80OLKwk"
     if not gemini_api_key:
@@ -52,14 +52,14 @@ async def analyze_with_gemini(text: str, user_input: str, sub_question: str, ope
             ),
             safety_settings=safety_config
         )
-        logger.debug(f"Raw Gemini API response: {response}")
+        logger.info(f"Raw Gemini API response: {response}")
         
         try:
             parsed_response = json.loads(response.candidates[0].content.parts[0].text)
             analysis = parsed_response.get("analysis")
             if analysis:
                 logger.info(f"Successfully parsed Gemini API response for sub-question: {sub_question}")
-                logger.debug(f"Analysis length: {len(analysis)} characters")
+                logger.info(f"Analysis length: {len(analysis)} characters")
                 return analysis
             else:
                 logger.warning(f"No analysis found in parsed response for sub-question: {sub_question}")
@@ -82,7 +82,7 @@ async def reformat_with_openai_analysis(raw_response: str, client: AsyncOpenAI) 
         {raw_response}
         """
 
-        logger.debug(f"Sending prompt to OpenAI (first 500 chars): {prompt[:500]}...")
+        logger.info(f"Sending prompt to OpenAI (first 500 chars): {prompt[:500]}...")
         response = await client.beta.chat.completions.parse(
             model="gpt-4o-mini",
             messages=[
@@ -94,7 +94,7 @@ async def reformat_with_openai_analysis(raw_response: str, client: AsyncOpenAI) 
 
         reformatted_analysis = response.choices[0].message.parsed.analysis
         logger.info("Successfully reformatted response with OpenAI")
-        logger.debug(f"Reformatted analysis length: {len(reformatted_analysis)} characters")
+        logger.info(f"Reformatted analysis length: {len(reformatted_analysis)} characters")
         return reformatted_analysis
     except Exception as e:
         logger.error(f"Failed to reformat response: {str(e)}. Returning empty string.")

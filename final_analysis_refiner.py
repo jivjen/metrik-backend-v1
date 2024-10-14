@@ -6,11 +6,11 @@ logger = logging.getLogger(__name__)
 
 async def final_analysis_refiner(complete_analysis: CompleteAnalysis, user_input: str, sub_question: str, client: AsyncOpenAI) -> RefinedAnalysis:
     logger.info(f"Starting final analysis refinement for sub-question: {sub_question}")
-    logger.debug(f"User input: {user_input}")
-    logger.debug(f"Complete analysis points count: {len(complete_analysis.analysis)}")
+    logger.info(f"User input: {user_input}")
+    logger.info(f"Complete analysis points count: {len(complete_analysis.analysis)}")
 
     formatted_points = "\n\n".join([f"Point: {point.point}\nReference: {point.reference}" for point in complete_analysis.analysis])
-    logger.debug(f"Formatted points (first 500 chars): {formatted_points[:500]}...")
+    logger.info(f"Formatted points (first 500 chars): {formatted_points[:500]}...")
 
     max_retries = 3
     for attempt in range(max_retries):
@@ -30,9 +30,10 @@ async def final_analysis_refiner(complete_analysis: CompleteAnalysis, user_input
                     5. Include all relevant data points, statistics, and trends.
                     6. Provide detailed explanations and context.
                     7. Highlight conflicting information or uncertainties.
-                    8. Use inline citations [^1^], [^2^], etc.
-                    9. If the main query or sub-question asks for specific details or formatting, prioritize that in the output.
-                    10. Create a consolidated, numbered References list with unique sources as clickable Markdown links.
+                    8. For each point that is used, provide a reference to its source under references.
+                    9. Use inline citations [^1^], [^2^], etc. 
+                    10. If the main query or sub-question asks for specific details or formatting, prioritize that in the output.
+                    11. Create a consolidated, numbered References list with unique sources as clickable Markdown links.
 
                     Produce a detailed, comprehensive summary addressing both the main query and sub-question.
                     Focus on depth and completeness, suitable for a professional research report.
@@ -41,12 +42,12 @@ async def final_analysis_refiner(complete_analysis: CompleteAnalysis, user_input
                 ],
                 response_format=FinalAnalysisRefinement
             )
-            logger.debug(f"Raw API response: {response}")
+            logger.info(f"Raw API response: {response}")
             
             refined_analysis = RefinedAnalysis(refined_analysis=response.choices[0].message.parsed.refined_analysis, references=response.choices[0].message.parsed.references)
             logger.info(f"Successfully refined analysis for sub-question: {sub_question}")
-            logger.debug(f"Refined analysis length: {len(refined_analysis.refined_analysis)}")
-            logger.debug(f"Number of references: {len(refined_analysis.references)}")
+            logger.info(f"Refined analysis length: {len(refined_analysis.refined_analysis)}")
+            logger.info(f"Number of references: {len(refined_analysis.references)}")
             return refined_analysis
         except Exception as e:
             logger.error(f"An error occurred during final analysis refinement (attempt {attempt + 1}/{max_retries}): {str(e)}", exc_info=True)
