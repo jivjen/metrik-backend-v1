@@ -134,7 +134,12 @@ async def process_pdfs(pdf_links: List[str], user_input: str, sub_question: str,
     list_of_processed_files = [pdf for pdf in list_of_processed_files if pdf is not None]
     logger.info(f"Successfully processed {len(list_of_processed_files)} out of {len(pdf_links)} PDFs")
 
-    update_status(ResearchStatus.SUMMARIZING_DOCUMENT, f"Summarizing {len(list_of_processed_files)} PDFs...")
+    update_status(ResearchProgress(
+        total_steps=5,
+        current_step=4,
+        status=ResearchStatus.SUMMARIZING_DOCUMENT,
+        details=f"Summarizing {len(list_of_processed_files)} PDFs..."
+    ))
     logger.info(f"Starting PDF summary for {len(list_of_processed_files)} processed files")
     full_pdf_summary = await summarize_pdf_analyses(list_of_processed_files, user_input, sub_question, openai, update_status)
     logger.info(f"PDF summary completed. Summary length: {len(full_pdf_summary['summary']) if isinstance(full_pdf_summary, dict) and 'summary' in full_pdf_summary else 'N/A'}")
