@@ -37,22 +37,21 @@ async def process_sub_question(user_input: str, question: SubQuestion, openai: A
     logger.info(f"Generated file keywords: {extracted_file_keywords}")
     logger.info(f"Keyword generation completed. Regular keywords: {len(extracted_keywords)}, File keywords: {len(extracted_file_keywords)}")
 
-    # Start all tasks concurrently
+    # Start keyword tasks concurrently
     keyword_tasks = [process_keyword(keyword, user_input, question.question, openai) for keyword in extracted_keywords]
-    pdf_search_task = search_for_pdf_files(extracted_file_keywords)
     
-    logger.info("Starting to gather all tasks")
-    # Gather all tasks
-    all_results = await asyncio.gather(
-        *keyword_tasks,
-        pdf_search_task
-    )
-    logger.info("All tasks gathered successfully")
+    logger.info("Starting PDF search task")
+    pdf_search_task = asyncio.create_task(search_for_pdf_files(extracted_file_keywords))
     
-    keyword_results = all_results[:-1]  # All but the last result are keyword results
-    pdf_links = all_results[-1]  # The last result is the PDF links
+    logger.info("Starting to gather keyword tasks")
+    keyword_results = await asyncio.gather(*keyword_tasks)
+    logger.info("All keyword tasks gathered successfully")
     
-    logger.info(f"Received {len(keyword_results)} keyword results and {len(pdf_links)} PDF links")
+    logger.info("Waiting for PDF search task to complete")
+    pdf_links = await pdf_search_task
+    logger.info(f"PDF search completed. Received {len(pdf_links)} PDF links")
+    
+    logger.info(f"Received {len(keyword_results)} keyword results")
     
     # Process PDFs
     update_status(ResearchStatus.PROCESSING_PDF, f"Processing PDFs for: {question.question[:50]}...")
@@ -88,12 +87,14 @@ async def process_sub_question(user_input: str, question: SubQuestion, openai: A
 
     return refined_analysis, full_pdf_summary
 
-async def process_pdfs(pdf_search_task: asyncio.Task, user_input: str, sub_question: str, openai: AsyncOpenAI, update_status: Callable):
-    pdf_links = await pdf_search_task
-    logger.info(f"Received {len(pdf_links)} PDF links from search task")
+async def process_pdfs(pdf_links: List[str], user_input: str, sub_question: str, openai: AsyncOpenAI, update_status: Callable):
+    logger.info(f"Starting to process {len(pdf_links)} PDFs")
     logger.info(f"PDF Links: {pdf_links}")
     
-    logger.info(f"Initiating processing for {len(pdf_links)} PDFs")
+    if not pdf_links:
+        logger.warning("No PDF links to process")
+        return {"summary": "No PDFs were found for analysis."}
+    
     pdf_tasks = [process_pdf(pdf_link, user_input, sub_question, openai, update_status) for pdf_link in pdf_links]
     list_of_processed_files = await asyncio.gather(*pdf_tasks)
     list_of_processed_files = [pdf for pdf in list_of_processed_files if pdf is not None]
