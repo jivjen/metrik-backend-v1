@@ -64,19 +64,20 @@ async def convert_to_text(file_url: str, update_status: Callable) -> str:
             with open(file_name, 'wb') as f:
                 f.write(response.content)
 
-            logger.info(f"Converting {file_name} to text using PyMuPDF")
-            update_status(ResearchStatus.PDF_TEXT_EXTRACTION, f"Extracting text from {file_name}")
-            doc = fitz.open(file_name)
-            text = ""
-            for page_num, page in enumerate(doc, 1):
-                page_text = page.get_text()
-                text += page_text
-                logger.info(f"Extracted text from page {page_num} (first 50 chars): {page_text[:50]}")
-                update_status(ResearchStatus.PDF_PAGE_EXTRACTED, f"Extracted text from page {page_num}/{doc.page_count} of {file_name}")
-            doc.close()
-
-            logger.info(f"Removing temporary file: {file_name}")
-            os.remove(file_name)
+            try:
+                logger.info(f"Converting {file_name} to text using PyMuPDF")
+                update_status(ResearchStatus.PDF_TEXT_EXTRACTION, f"Extracting text from {file_name}")
+                doc = fitz.open(file_name)
+                text = ""
+                for page_num, page in enumerate(doc, 1):
+                    page_text = page.get_text()
+                    text += page_text
+                    logger.info(f"Extracted text from page {page_num} (first 50 chars): {page_text[:50]}")
+                    update_status(ResearchStatus.PDF_PAGE_EXTRACTED, f"Extracted text from page {page_num}/{doc.page_count} of {file_name}")
+                doc.close()
+            finally:
+                logger.info(f"Removing temporary file: {file_name}")
+                os.remove(file_name)
 
             logger.info(f"Successfully converted {file_url} to text using PyMuPDF")
             update_status(ResearchStatus.PYMUPDF_CONVERSION_COMPLETED, f"Successfully converted {file_name} using PyMuPDF")
