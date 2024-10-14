@@ -31,7 +31,7 @@ async def search_for_pdf_files(keywords: list[str], max_results: int = 30, max_a
                     for item in data.get('items', []):
                         if attempts >= max_attempts or len(pdf_links) >= max_results:
                             logger.info("Reached max attempts or results limit")
-                            break
+                            return
                         file_url = item['link']
                         if file_url.lower().endswith('.pdf'):
                             logger.info(f"Found PDF: {file_url}")
@@ -41,14 +41,14 @@ async def search_for_pdf_files(keywords: list[str], max_results: int = 30, max_a
                     logger.error(f"Error occurred while searching for keyword '{keyword}': HTTP {response.status}")
         except Exception as e:
             logger.error(f"Error occurred while searching for keyword '{keyword}': {e}", exc_info=True)
-        attempts += 1
         logger.info(f"Completed search for keyword '{keyword}'. Total attempts: {attempts}")
 
     # Use a custom connector that doesn't rely on aiodns
     connector = TCPConnector(ssl=False, use_dns_cache=False)
     async with ClientSession(connector=connector) as session:
         logger.info("Starting concurrent keyword searches")
-        await asyncio.gather(*[search_keyword(session, keyword) for keyword in keywords])
+        tasks = [search_keyword(session, keyword) for keyword in keywords]
+        await asyncio.gather(*tasks)
     
     logger.info(f"PDF search completed. Found {len(pdf_links)} PDF links")
     logger.info(f"PDF links found: {pdf_links}")
