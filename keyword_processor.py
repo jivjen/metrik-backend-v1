@@ -52,20 +52,18 @@ async def process_keyword(keyword: str, user_input: str, sub_question: str, open
     for attempt in range(max_retries):
         try:
             logger.info(f"Attempt {attempt + 1} of {max_retries}")
-            update_status(ResearchStatus.TAVILY_SEARCH, f"Searching Tavily for keyword: {keyword} (Attempt {attempt + 1})")
+            update_status(ResearchStatus.SEARCHING_ONLINE, f"Searching Online for keyword: {keyword} (Attempt {attempt + 1})")
             api_key, current_key_num = await get_tavily_api_key()
             tavily_client = TavilyClient(api_key=api_key)
             tavily_result = await asyncio.to_thread(tavily_client.get_search_context, keyword)
             logger.info(f"Received Tavily search result (first 100 chars): {tavily_result[:100]}...")
-            update_status(ResearchStatus.TAVILY_SEARCH_COMPLETED, f"Completed Tavily search for keyword: {keyword}")
+            update_status(ResearchStatus.SEARCH_COMPLETED, f"Completed search for keyword: {keyword}")
             break
         except Exception as e:
             logger.error(f"Error in Tavily search for keyword '{keyword}': {str(e)}")
-            update_status(ResearchStatus.TAVILY_SEARCH_ERROR, f"Error in Tavily search for keyword: {keyword}. Retrying...")
             await update_tavily_api_key(current_key_num)
             if attempt == max_retries - 1:
                 logger.warning(f"All API keys exhausted. Unable to process keyword: '{keyword}'")
-                update_status(ResearchStatus.TAVILY_SEARCH_FAILED, f"Failed to search Tavily for keyword: {keyword}")
                 tavily_result = ""
 
     logger.info(f"Analyzing Tavily search result for keyword: '{keyword}'")
