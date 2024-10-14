@@ -4,8 +4,14 @@ import os
 import fitz
 import logging
 from time import time
+import asyncio
+import platform
 
 logger = logging.getLogger(__name__)
+
+# Configure event loop policy for Windows
+if platform.system() == 'Windows':
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 async def convert_to_text(file_url: str) -> str:
     logger.info(f"Starting conversion for file: {file_url}")
@@ -39,7 +45,8 @@ async def convert_to_text(file_url: str) -> str:
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
         try:
-            async with aiohttp.ClientSession() as session:
+            timeout = aiohttp.ClientTimeout(total=60)  # Set a timeout of 60 seconds
+            async with aiohttp.ClientSession(timeout=timeout) as session:
                 logger.info(f"Downloading file from {file_url}")
                 async with session.get(file_url, headers=headers) as response:
                     if response.status != 200:
