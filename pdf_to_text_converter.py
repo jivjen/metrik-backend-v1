@@ -13,6 +13,14 @@ logger = logging.getLogger(__name__)
 if platform.system() == 'Windows':
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
+# Set up DNS resolver for Windows
+if platform.system() == 'Windows':
+    import aiodns
+    resolver = aiodns.DNSResolver(loop=asyncio.get_event_loop())
+    connector = aiohttp.TCPConnector(resolver=resolver)
+else:
+    connector = None
+
 async def convert_to_text(file_url: str) -> str:
     logger.info(f"Starting conversion for file: {file_url}")
     start_time = time()
@@ -24,7 +32,7 @@ async def convert_to_text(file_url: str) -> str:
             headers = {
                 "Authorization": "Bearer jina_cdfde91597854ce89ef3daed22947239autBdM5UrHeOgwRczhd1JYzs51OH"
             }
-            async with aiohttp.ClientSession() as session:
+            async with aiohttp.ClientSession(connector=connector) as session:
                 logger.info(f"Sending GET request to Jina AI for {file_url}")
                 async with session.get(url, headers=headers) as response:
                     if response.status == 200:
