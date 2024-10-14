@@ -60,7 +60,7 @@ async def run_research(job_id: str, user_input: str):
     try:
         logger.info(f"Starting research for job {job_id}")
         logger.debug(f"User input: {user_input}")
-        result = await research(user_input, lambda progress: update_job_status(job_id, progress))
+        result = await research(user_input, lambda progress, sub_status=None: update_job_status(job_id, progress, sub_status))
         logger.info(f"Research completed for job {job_id}")
         logger.debug(f"Research result: {result}")
         
